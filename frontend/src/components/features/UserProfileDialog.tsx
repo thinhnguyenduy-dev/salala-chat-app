@@ -1,7 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Calendar, User as UserIcon, Phone, Info } from "lucide-react";
+import { Mail, Calendar, Phone, Info, User as UserIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import i18n from '@/lib/i18n';
 import { IUser } from "@repo/shared";
 
 interface UserProfileDialogProps {
@@ -11,6 +13,7 @@ interface UserProfileDialogProps {
 }
 
 export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialogProps) {
+  const { t } = useTranslation();
   if (!user) return null;
 
   return (
@@ -38,7 +41,7 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
             <h2 className="text-2xl font-bold">{user.displayName || user.username}</h2>
             {user.displayName && <p className="text-sm text-muted-foreground">@{user.username}</p>}
             <Badge variant={user.status === 'online' ? 'default' : 'secondary'} className="px-3">
-              {user.status === 'online' ? 'Đang hoạt động' : 'Ngoại tuyến'}
+              {user.status === 'online' ? t('common.online') : t('common.offline')}
             </Badge>
           </div>
 
@@ -50,7 +53,7 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
                  <Mail className="h-4 w-4 text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Email</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('profile.email')}</p>
                 <p className="font-medium truncate">{user.email}</p>
               </div>
             </div>
@@ -62,7 +65,7 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
                     <Phone className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Điện thoại</p>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('profile.phone')}</p>
                     <p className="font-medium truncate">{user.phoneNumber}</p>
                 </div>
                 </div>
@@ -75,9 +78,9 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Ngày sinh</p>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('profile.dob')}</p>
                     <p className="font-medium text-sm">
-                        {new Date(user.dateOfBirth).toLocaleDateString('vi-VN', {
+                        {new Date(user.dateOfBirth).toLocaleDateString(i18n.language.startsWith('vi') ? 'vi-VN' : 'en-US', {
                              year: 'numeric',
                              month: 'long', 
                              day: 'numeric'
@@ -95,7 +98,7 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
                     <Info className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Giới thiệu</p>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('profile.bio')}</p>
                     <p className="font-medium text-sm whitespace-pre-wrap">{user.bio}</p>
                 </div>
                 </div>
@@ -107,9 +110,9 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
                  <Calendar className="h-4 w-4 text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Tham gia từ</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('profile.joined')}</p>
                 <p className="font-medium">
-                    {new Date(user.createdAt).toLocaleDateString('vi-VN', {
+                    {new Date(user.createdAt).toLocaleDateString(i18n.language.startsWith('vi') ? 'vi-VN' : 'en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'

@@ -19,6 +19,8 @@ import { UserProfileDialog } from '@/components/features/UserProfileDialog';
 
 import { ProfileSettingsDialog } from '@/components/features/ProfileSettingsDialog';
 import { Settings } from 'lucide-react';
+import '@/lib/i18n'; // Init i18n
+import { useTranslation } from 'react-i18next';
 
 interface Conversation {
   id: string;
@@ -34,6 +36,7 @@ interface Conversation {
 
 export function SidebarLeft() {
   const router = useRouter();
+  const { t, i18n } = useTranslation();
   const { user, logout } = useAuthStore();
   const { setActiveConversationId, activeConversationId } = useChatStore();
   
@@ -145,14 +148,14 @@ export function SidebarLeft() {
           <AddFriendDialog>
             <Button variant="secondary" className="flex-1 justify-start" size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Thêm bạn
+              {t('common.add_friend')}
             </Button>
           </AddFriendDialog>
           
           <CreateGroupDialog>
             <Button variant="secondary" className="flex-1 justify-start" size="sm">
               <Users className="h-4 w-4 mr-2" />
-              Tạo nhóm
+              {t('common.create_group')}
             </Button>
           </CreateGroupDialog>
         </div>
@@ -165,7 +168,7 @@ export function SidebarLeft() {
           {/* Groups Section */}
           <div className="space-y-1">
              <div className="px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider flex items-center justify-between">
-                <span>NHÓM CHAT</span>
+                <span>{t('common.groups')}</span>
                 <span className="bg-muted px-2 py-0.5 rounded-full text-[10px]">{groupChats.length}</span>
              </div>
              {groupChats.map((conv) => (
@@ -195,14 +198,14 @@ export function SidebarLeft() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
-                    {conv.participantIds.length} thành viên
+                    {conv.participantIds.length} {t('common.members')}
                   </p>
                 </div>
               </div>
             ))}
             {groupChats.length === 0 && (
                <div className="text-center text-xs text-muted-foreground py-4 italic opacity-70">
-                Chưa có nhóm nào
+                {t('common.no_groups')}
               </div>
             )}
           </div>
@@ -212,7 +215,7 @@ export function SidebarLeft() {
           {/* Friends Section */}
           <div className="space-y-1">
              <div className="px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider flex items-center justify-between">
-                <span>BẠN BÈ</span>
+                <span>{t('common.friends')}</span>
                 <span className="bg-muted px-2 py-0.5 rounded-full text-[10px]">{friends.length}</span>
              </div>
              {friends.map((friend) => {
@@ -254,7 +257,7 @@ export function SidebarLeft() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {friend.status === 'online' ? 'Đang hoạt động' : 'Không hoạt động'}
+                      {friend.status === 'online' ? t('common.online') : t('common.offline')}
                     </p>
                   </div>
                 </div>
@@ -262,7 +265,7 @@ export function SidebarLeft() {
             })}
             {friends.length === 0 && (
                <div className="text-center text-xs text-muted-foreground py-4 italic opacity-70">
-                Chưa có bạn bè
+                {t('common.no_friends')}
               </div>
             )}
           </div>
@@ -280,8 +283,17 @@ export function SidebarLeft() {
             <p className="text-sm font-medium truncate">{user?.username}</p>
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)} title="Cài đặt">
+          <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)} title={t('common.settings')}>
             <Settings className="h-4 w-4" />
+          </Button>
+           <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => i18n.changeLanguage(i18n.language.startsWith('en') ? 'vi' : 'en')}
+            title="Switch Language"
+            className="font-bold text-xs"
+          >
+            {i18n.language.startsWith('en') ? 'EN' : 'VN'}
           </Button>
           <ThemeToggle />
         </div>

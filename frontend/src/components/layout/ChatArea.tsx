@@ -17,7 +17,11 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { UserProfileDialog } from '@/components/features/UserProfileDialog';
 import { IUser } from '@repo/shared';
 
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { useTranslation } from 'react-i18next';
+
 export function ChatArea() {
+  const { t } = useTranslation();
   const activeConversationId = useChatStore((state) => state.activeConversationId);
   const messagesMap = useChatStore((state) => state.messages);
   const realtimeMessages = activeConversationId ? messagesMap[activeConversationId] || [] : [];
@@ -32,6 +36,7 @@ export function ChatArea() {
   const [inputText, setInputText] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewImage, setViewImage] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   
   const { socket, sendMessage: socketSendMessage, joinRoom } = useSocket();
 
@@ -269,7 +274,11 @@ export function ChatArea() {
                               ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white' 
                               : 'bg-muted'
                           }`}>
-                               <p className="text-sm">{msg.content}</p>
+                               <p className={`${
+                                   /^[\p{Emoji}\u200d\s]+$/u.test(msg.content) && msg.content.length < 10 
+                                     ? 'text-4xl leading-relaxed' 
+                                     : 'text-sm'
+                               }`}>{msg.content}</p>
                                {msg.fileUrl && (
                                    <div className="mt-2 relative w-48 h-48 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewImage(msg.fileUrl)}>
                                        <Image 
@@ -358,15 +367,31 @@ export function ChatArea() {
             </Button>
             <Input 
                 className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground" 
-                placeholder={isUploading ? "Uploading..." : "Type a message..."}
+                placeholder={isUploading ? t('common.uploading') : t('common.type_message')}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isUploading}
             />
-             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-background">
-                <Smile className="h-5 w-5" />
-            </Button>
+            <div className="relative">
+                {showEmojiPicker && (
+                    <div className="absolute bottom-12 right-0 z-10 shadow-xl rounded-xl">
+                        <EmojiPicker 
+                            onEmojiClick={(emojiData) => setInputText((prev) => prev + emojiData.emoji)}
+                            width={300}
+                            height={400}
+                        />
+                    </div>
+                )}
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={`h-9 w-9 rounded-full text-muted-foreground hover:bg-background ${showEmojiPicker ? 'text-primary bg-background' : ''}`}
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                >
+                    <Smile className="h-5 w-5" />
+                </Button>
+            </div>
             <Button size="icon" className="h-9 w-9 rounded-full" onClick={handleSendMessage} disabled={isUploading || (!inputText.trim() && !selectedFile)}>
                 <Send className="h-4 w-4" />
             </Button>

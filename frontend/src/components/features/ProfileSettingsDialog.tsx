@@ -9,6 +9,7 @@ import { IUser } from "@repo/shared";
 import { useAuthStore } from "@/store/useAuthStore";
 import { uploadFile } from "@/lib/upload";
 import { Loader2, Upload } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ProfileSettingsDialogProps {
   open: boolean;
@@ -17,6 +18,7 @@ interface ProfileSettingsDialogProps {
 }
 
 export function ProfileSettingsDialog({ open, onOpenChange, currentUser }: ProfileSettingsDialogProps) {
+  const { t } = useTranslation();
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -62,7 +64,7 @@ export function ProfileSettingsDialog({ open, onOpenChange, currentUser }: Profi
           setAvatar(url);
       } catch (error) {
           console.error("Avatar upload failed:", error);
-          alert("Upload ảnh thất bại");
+          alert(t('common.upload_failed'));
       } finally {
           setIsUploading(false);
       }
@@ -101,14 +103,14 @@ export function ProfileSettingsDialog({ open, onOpenChange, currentUser }: Profi
        }
 
        onOpenChange(false);
-       alert("Cập nhật thành công!");
+       alert(t('common.success'));
        // We don't necessarily need reload if we updated the store, SidebarLeft should react to store user change.
        // But to be safe and ensure all other components (like chat header) update, we can reload or just trust React.
        // Let's trust React first. SidebarLeft listens to `user` from store.
        
     } catch (e) {
         console.error(e);
-        alert("Lỗi khi cập nhật profile");
+        alert(t('profile.update_error'));
     } finally {
         setIsLoading(false);
     }
@@ -118,7 +120,7 @@ export function ProfileSettingsDialog({ open, onOpenChange, currentUser }: Profi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Cài đặt Profile</DialogTitle>
+          <DialogTitle>{t('profile.title')}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-6 py-4">
           {/* Avatar Section */}
@@ -132,14 +134,14 @@ export function ProfileSettingsDialog({ open, onOpenChange, currentUser }: Profi
                     {isUploading ? <Loader2 className="h-6 w-6 text-white animate-spin" /> : <Upload className="h-6 w-6 text-white" />}
                 </div>
              </div>
-             <p className="text-xs text-muted-foreground">Nhấn để thay đổi ảnh đại diện</p>
+             <p className="text-xs text-muted-foreground">{t('profile.change_avatar_hint')}</p>
              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
           </div>
 
           <div className="grid gap-4">
             {/* Display Name */}
             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="displayName" className="text-right">Tên hiển thị</Label>
+                <Label htmlFor="displayName" className="text-right">{t('profile.display_name')}</Label>
                 <Input
                 id="displayName"
                 value={displayName}
@@ -151,7 +153,7 @@ export function ProfileSettingsDialog({ open, onOpenChange, currentUser }: Profi
 
             {/* Phone */}
             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="phone" className="text-right">Số điện thoại</Label>
+                <Label htmlFor="phone" className="text-right">{t('profile.phone')}</Label>
                 <Input
                 id="phone"
                 value={phone}
@@ -163,7 +165,7 @@ export function ProfileSettingsDialog({ open, onOpenChange, currentUser }: Profi
 
             {/* Date of Birth */}
             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="dob" className="text-right">Ngày sinh</Label>
+                <Label htmlFor="dob" className="text-right">{t('profile.dob')}</Label>
                 <Input
                 id="dob"
                 type="date"
@@ -175,13 +177,13 @@ export function ProfileSettingsDialog({ open, onOpenChange, currentUser }: Profi
 
             {/* Bio */}
             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="bio" className="text-right">Giới thiệu</Label>
+                <Label htmlFor="bio" className="text-right">{t('profile.bio')}</Label>
                 <Textarea
                 id="bio"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 className="col-span-3"
-                placeholder="Vài dòng về bản thân..."
+                placeholder={t('profile.bio_placeholder')}
                 rows={3}
                 />
             </div>
@@ -189,7 +191,7 @@ export function ProfileSettingsDialog({ open, onOpenChange, currentUser }: Profi
         </div>
         <DialogFooter>
           <Button type="submit" onClick={handleSave} disabled={isLoading || isUploading}>
-            {isLoading ? "Đang lưu..." : "Lưu thay đổi"}
+            {isLoading ? t('profile.saving') : t('profile.save_changes')}
           </Button>
         </DialogFooter>
       </DialogContent>
