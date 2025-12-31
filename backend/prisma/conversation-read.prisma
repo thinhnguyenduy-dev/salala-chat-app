@@ -1,0 +1,11 @@
+model ConversationRead {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String   @db.ObjectId
+  userId         String   @db.ObjectId
+  lastReadMessageId String? @db.ObjectId
+  updatedAt      DateTime @updatedAt
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+}

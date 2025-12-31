@@ -1,0 +1,15 @@
+{
+  "name": "chat-app-root",
+  "private": true,
+  "scripts": {
+    "install:all": "cd packages/shared && pnpm install && cd ../../backend && pnpm install && cd ../frontend && pnpm install",
+    "build:shared": "cd packages/shared && pnpm build",
+    "dev:backend": "cd backend && pnpm run start:dev",
+    "dev:frontend": "cd frontend && pnpm run dev",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

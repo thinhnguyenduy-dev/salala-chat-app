@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  username  String   @unique
+  email     String   @unique
+  password  String
+  avatar    String?  // Optional avatar URL
+  friendIds String[] @db.ObjectId
+  fcmTokens String[] @default([]) // FCM device tokens for push notifications
+  
+  conversations           Conversation[]   @relation(fields: [conversationIds], references: [id])
+  conversationIds         String[]         @db.ObjectId
+  
+  sentFriendRequests      FriendRequest[]  @relation("Sender")
+  receivedFriendRequests  FriendRequest[]  @relation("Receiver")
+
+  messages Message[]
+
+  status    String   @default("offline") // online, offline
+  createdAt DateTime @default(now())
+}
+
+model FriendRequest {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  senderId   String   @db.ObjectId
+  receiverId String   @db.ObjectId
+  status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("Sender", fields: [senderId], references: [id])
+  receiver User @relation("Receiver", fields: [receiverId], references: [id])
+
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+model Conversation {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String?
+  isGroup        Boolean  @default(false)
+  participantIds String[] @db.ObjectId
+  lastMessageId  String?  @db.ObjectId @unique
+  updatedAt      DateTime @updatedAt
+
+  lastMessage Message?  @relation("LastMessage", fields: [lastMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  messages    Message[] @relation("ConversationMessages")
+  
+  participants User[] @relation(fields: [participantIds], references: [id])
+}
+
+model Message {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String   @db.ObjectId
+  senderId       String   @db.ObjectId
+  content        String?
+  fileUrl        String?
+  createdAt      DateTime @default(now())
+
+  sender       User         @relation(fields: [senderId], references: [id])
+  conversation Conversation @relation("ConversationMessages", fields: [conversationId], references: [id])
+  
+  // Back relation for lastMessage
+  lastMessageFor Conversation? @relation("LastMessage")
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+model ConversationRead {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId    String   @db.ObjectId
+  userId            String   @db.ObjectId
+  lastReadMessageId String?  @db.ObjectId
+  updatedAt         DateTime @updatedAt
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+}
