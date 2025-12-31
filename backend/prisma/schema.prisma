@@ -16,6 +16,11 @@ model User {
   friendIds String[] @db.ObjectId
   fcmTokens String[] @default([]) // FCM device tokens for push notifications
   
+  phoneNumber String?
+  bio         String?
+  displayName String?
+  dateOfBirth DateTime?
+  
   conversations           Conversation[]   @relation(fields: [conversationIds], references: [id])
   conversationIds         String[]         @db.ObjectId
   

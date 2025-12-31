@@ -13,6 +13,9 @@ import { useMessagesInfinite } from '@/hooks/useMessagesInfinite';
 import { useChatStore } from '@/store/useChatStore';
 import { useInView } from 'react-intersection-observer';
 import { useAuthStore } from '@/store/useAuthStore';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { UserProfileDialog } from '@/components/features/UserProfileDialog';
+import { IUser } from '@repo/shared';
 
 export function ChatArea() {
   const activeConversationId = useChatStore((state) => state.activeConversationId);
@@ -27,42 +30,22 @@ export function ChatArea() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [inputText, setInputText] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [viewImage, setViewImage] = useState<string | null>(null);
   
   const { socket, sendMessage: socketSendMessage, joinRoom } = useSocket();
 
-  // Join room when conversation changes
-  useEffect(() => {
-    if (activeConversationId && joinRoom) {
-      joinRoom(activeConversationId);
-      
-      // Mark conversation as read when opening it
-      if (displayMessages.length > 0 && user?.id) {
-        const lastMessage = displayMessages[displayMessages.length - 1];
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        fetch(`${apiUrl}/social/conversation/mark-read`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            conversationId: activeConversationId,
-            userId: user.id,
-            lastMessageId: lastMessage.id,
-          }),
-        }).catch(err => console.error('Failed to mark as read:', err));
-      }
-    }
-  }, [activeConversationId, joinRoom, displayMessages.length, user?.id]);
-
   const handleSendMessage = async () => {
-    if (!activeConversationId || (!inputText.trim() && !fileInputRef.current?.files?.length)) return;
+    if (!activeConversationId || (!inputText.trim() && !selectedFile)) return;
     
     let fileUrl = undefined;
-    if (fileInputRef.current?.files?.length) {
+    if (selectedFile) {
         setIsUploading(true);
         try {
-            fileUrl = await uploadFile(fileInputRef.current.files[0]);
+            fileUrl = await uploadFile(selectedFile);
         } catch (e) {
             console.error(e);
-            alert('Upload failed');
+            alert('Upload failed: ' + (e as Error).message);
             setIsUploading(false);
             return;
         }
@@ -72,6 +55,7 @@ export function ChatArea() {
     if (socketSendMessage) {
         socketSendMessage(activeConversationId, inputText, fileUrl);
         setInputText('');
+        setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -121,6 +105,28 @@ export function ChatArea() {
   realtimeMessages.forEach(m => allMessagesMap.set(m.id, m));
   
   const displayMessages = Array.from(allMessagesMap.values());
+
+  // Join room when conversation changes
+  useEffect(() => {
+    if (activeConversationId && joinRoom) {
+      joinRoom(activeConversationId);
+      
+      // Mark conversation as read when opening it
+      if (displayMessages.length > 0 && user?.id) {
+        const lastMessage = displayMessages[displayMessages.length - 1];
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        fetch(`${apiUrl}/social/conversation/mark-read`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId: activeConversationId,
+            userId: user.id,
+            lastMessageId: lastMessage.id,
+          }),
+        }).catch(err => console.error('Failed to mark as read:', err));
+      }
+    }
+  }, [activeConversationId, joinRoom, displayMessages.length, user?.id]);
 
   // Auto-scroll to bottom on NEW real-time message (basic implementation)
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -174,6 +180,45 @@ export function ChatArea() {
     fetchConversationInfo();
   }, [activeConversationId, user?.id]);
 
+  const [selectedProfileUser, setSelectedProfileUser] = useState<IUser | null>(null);
+
+  // ... (keep existing effects)
+
+  // Helper to open profile from header (only if 1-on-1)
+  const handleHeaderProfileClick = async () => {
+      // Find the user object for the other person
+      if (!activeConversationId) return;
+       // We need to find the other participant ID
+       // We can use the participants Map if we have it
+       // But participants map keys are IDs, values are User objects.
+       
+       // If it's a group, maybe show group members list? For now let's focus on 1-on-1 profile
+       // Check conversation type
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${apiUrl}/social/conversations/${user?.id}`);
+        const convs = await res.json();
+        const currentConv = convs.find((c: any) => c.id === activeConversationId);
+        
+        if (currentConv && !currentConv.isGroup) {
+            const otherUserId = currentConv.participantIds.find((id: string) => id !== user?.id);
+            if (otherUserId) {
+                // Check if we already have it in participants map
+                if (participants.has(otherUserId)) {
+                    setSelectedProfileUser(participants.get(otherUserId));
+                } else {
+                    // Fetch
+                    const userRes = await fetch(`${apiUrl}/social/user/${otherUserId}`);
+                    const userData = await userRes.json();
+                    setSelectedProfileUser(userData);
+                }
+            }
+        }
+      } catch (e) {
+          console.error(e);
+      }
+  };
+
   if (!activeConversationId) {
     return <div className="flex-1 flex items-center justify-center text-muted-foreground">Chọn một cuộc trò chuyện</div>;
   }
@@ -182,7 +227,7 @@ export function ChatArea() {
     <div className="flex-1 flex flex-col min-w-0 bg-background h-screen">
       {/* Header */}
       <div className="h-14 border-b flex items-center px-4 justify-between bg-card/50 backdrop-blur">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity" onClick={handleHeaderProfileClick}>
            <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
                   {conversationName.slice(0, 2).toUpperCase()}
@@ -193,7 +238,8 @@ export function ChatArea() {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4">
+      <div className="flex-1 min-h-0">
+          <ScrollArea className="h-full p-4">
         <div className="space-y-4 flex flex-col justify-end min-h-full">
             {/* Loading Indicator at Top */}
             <div ref={topRef} className="h-4 w-full flex justify-center p-2">
@@ -206,7 +252,7 @@ export function ChatArea() {
                 
                 return (
                   <div key={msg.id} className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''} group`}> 
-                      <Avatar className="h-8 w-8 mt-1">
+                      <Avatar className="h-8 w-8 mt-1 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sender && setSelectedProfileUser(sender)}>
                           <AvatarImage src={sender?.avatar} />
                           <AvatarFallback className={isOwnMessage ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white' : ''}>
                             {sender?.username?.slice(0,2).toUpperCase() || 'U'}
@@ -214,7 +260,7 @@ export function ChatArea() {
                       </Avatar>
                       <div className="flex flex-col max-w-[70%]">
                           {!isOwnMessage && (
-                            <span className="text-xs text-muted-foreground mb-1 ml-1">
+                            <span className="text-xs text-muted-foreground mb-1 ml-1 cursor-pointer hover:underline" onClick={() => sender && setSelectedProfileUser(sender)}>
                               {sender?.username || 'Unknown'}
                             </span>
                           )}
@@ -225,7 +271,7 @@ export function ChatArea() {
                           }`}>
                                <p className="text-sm">{msg.content}</p>
                                {msg.fileUrl && (
-                                   <div className="mt-2 relative w-48 h-48">
+                                   <div className="mt-2 relative w-48 h-48 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewImage(msg.fileUrl)}>
                                        <Image 
                                           src={msg.fileUrl} 
                                           alt="Shared image" 
@@ -250,17 +296,60 @@ export function ChatArea() {
             <div ref={lastMessageRef} />
         </div>
       </ScrollArea>
+      </div>
+
+     {/* ... Input Area ... */}
+      
+      {/* ... Image Viewer ... */}
+
+      <UserProfileDialog 
+        user={selectedProfileUser} 
+        open={!!selectedProfileUser} 
+        onOpenChange={(open) => !open && setSelectedProfileUser(null)} 
+      />
+
+
+
 
       {/* Input Area */}
       <div className="p-4 border-t bg-card/50 backdrop-blur">
+        {selectedFile && (
+            <div className="flex items-center gap-2 mb-2 p-2 bg-muted rounded-lg w-fit">
+                <div className="relative w-12 h-12 rounded overflow-hidden">
+                    <Image 
+                        src={URL.createObjectURL(selectedFile)} 
+                        alt="Preview" 
+                        fill 
+                        className="object-cover"
+                    />
+                </div>
+                <div className="flex flex-col">
+                    <span className="text-xs font-medium max-w-[150px] truncate">{selectedFile.name}</span>
+                    <span className="text-[10px] text-muted-foreground">{(selectedFile.size / 1024).toFixed(1)} KB</span>
+                </div>
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6 ml-1 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => {
+                        setSelectedFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                >
+                    <span className="sr-only">Remove</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 18 18"/></svg>
+                </Button>
+            </div>
+        )}
         <input 
             type="file" 
             ref={fileInputRef} 
             className="hidden" 
             accept="image/*"
-            onChange={() => {
-                // Optional: Show preview or auto-send. For now, just having it selected is enough to trigger logic on Send.
-                // Or maybe better UX: Show file name?
+            onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                    setSelectedFile(e.target.files[0]);
+                }
             }} 
         />
         <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-xl">
@@ -278,11 +367,28 @@ export function ChatArea() {
              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-background">
                 <Smile className="h-5 w-5" />
             </Button>
-            <Button size="icon" className="h-9 w-9 rounded-full" onClick={handleSendMessage} disabled={isUploading}>
+            <Button size="icon" className="h-9 w-9 rounded-full" onClick={handleSendMessage} disabled={isUploading || (!inputText.trim() && !selectedFile)}>
                 <Send className="h-4 w-4" />
             </Button>
         </div>
       </div>
+
+      {/* Image Viewer Dialog */}
+      <Dialog open={!!viewImage} onOpenChange={(open) => !open && setViewImage(null)}>
+        <DialogContent className="max-w-screen-lg w-full h-[90vh] p-0 bg-transparent border-0 shadow-none flex items-center justify-center">
+             <div className="relative w-full h-full">
+                {viewImage && (
+                    <Image
+                        src={viewImage}
+                        alt="Full screen view"
+                        fill
+                        className="object-contain"
+                        priority
+                    />
+                )}
+             </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

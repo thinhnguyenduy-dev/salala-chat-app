@@ -6,6 +6,10 @@ export interface IUser {
   friendIds: string[];
   status: string;
   createdAt: Date;
+  phoneNumber?: string;
+  bio?: string;
+  displayName?: string;
+  dateOfBirth?: Date;
 }
 
 export interface IFriendRequest {

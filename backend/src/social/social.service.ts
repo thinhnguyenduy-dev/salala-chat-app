@@ -225,6 +225,25 @@ export class SocialService {
     return newConversation;
   }
 
+  async updateProfile(userId: string, data: { 
+    phoneNumber?: string; 
+    bio?: string;
+    displayName?: string;
+    dateOfBirth?: Date | string;
+    avatar?: string;
+  }) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.phoneNumber !== undefined && { phoneNumber: data.phoneNumber }),
+        ...(data.bio !== undefined && { bio: data.bio }),
+        ...(data.displayName !== undefined && { displayName: data.displayName }),
+        ...(data.dateOfBirth && { dateOfBirth: new Date(data.dateOfBirth) }),
+        ...(data.avatar && { avatar: data.avatar }),
+      },
+    });
+  }
+
   async getUserById(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -270,23 +289,30 @@ export class SocialService {
       },
     });
 
+    if (!readStatus || !readStatus.lastReadMessageId) {
+        // If never read, maybe return all? Or 0? 
+        // For simplicity let's return count of all messages if never read, or just 0 to be safe/less annoying initially.
+        // Actually, usually if no read status, everything is unread.
+        // But for new users in new groups, they might not have read status yet.
+        return 0; // consistent with "mark as read" logic creating the record
+    }
+
     // Count messages after the last read message
+    // We need to find the createdAt of the lastReadMessageId to be precise, or just use ID comparison if ObjectIDs are monotonic (usually are)
+    // Prisma Mongo IDs are not strictly monotonic by default unless configured.
+    // Let's look up the message to get createdAt
+    const lastReadMsg = await this.prisma.message.findUnique({
+        where: { id: readStatus.lastReadMessageId },
+        select: { createdAt: true }
+    });
+
+    if (!lastReadMsg) return 0;
+
     const unreadCount = await this.prisma.message.count({
       where: {
         conversationId,
         senderId: { not: userId }, // Don't count own messages
-        ...(readStatus?.lastReadMessageId
-          ? {
-              createdAt: {
-                gt: (
-                  await this.prisma.message.findUnique({
-                    where: { id: readStatus.lastReadMessageId },
-                    select: { createdAt: true },
-                  })
-                )?.createdAt,
-              },
-            }
-          : {}),
+        createdAt: { gt: lastReadMsg.createdAt }
       },
     });
 

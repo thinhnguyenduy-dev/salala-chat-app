@@ -47,8 +47,14 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
       }
       
       if (messaging) {
+        const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+        if (!vapidKey) {
+            console.error('Missing NEXT_PUBLIC_FIREBASE_VAPID_KEY');
+            return null;
+        }
+        
         const token = await getToken(messaging, {
-          vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+          vapidKey: vapidKey,
         });
         
         console.log('FCM Token:', token);

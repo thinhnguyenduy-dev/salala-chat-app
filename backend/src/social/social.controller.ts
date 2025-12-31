@@ -1,5 +1,6 @@
-import { Controller, Post, Body, Get, UseGuards, Request, Param, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Request, Param, Query, Optional, Inject } from '@nestjs/common';
 import { SocialService } from './social.service';
+import { ChatGateway } from '../chat/chat.gateway';
 // Assuming we create an AuthGuard later or extract userId from mock/headers for now if Auth not fully ready?
 // But plan says "JWT Auth" was for Gateway. For HTTP we should probably use Guard too, 
 // but user didn't explicitly ask for HTTP Auth setup yet aside from Gateway.
@@ -12,7 +13,7 @@ import { SocialService } from './social.service';
 export class SocialController {
   constructor(
     private readonly socialService: SocialService,
-    private chatGateway?: any, // Will be injected if available
+    @Optional() @Inject(ChatGateway) private readonly chatGateway?: ChatGateway,
   ) {}
 
   @Post('friend-request')
@@ -87,5 +88,23 @@ export class SocialController {
   @Post('conversation/with')
   async getOrCreateConversation(@Body() body: { userId: string; friendId: string }) {
     return this.socialService.getOrCreateConversation(body.userId, body.friendId);
+  }
+
+  @Post('profile')
+  async updateProfile(@Body() body: { 
+    userId: string; 
+    phoneNumber?: string; 
+    bio?: string;
+    displayName?: string;
+    dateOfBirth?: string;
+    avatar?: string;
+  }) {
+    return this.socialService.updateProfile(body.userId, {
+        phoneNumber: body.phoneNumber,
+        bio: body.bio,
+        displayName: body.displayName,
+        dateOfBirth: body.dateOfBirth,
+        avatar: body.avatar
+    });
   }
 }

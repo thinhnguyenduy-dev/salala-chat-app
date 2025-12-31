@@ -14,6 +14,11 @@ import { FriendRequestsDialog } from '@/components/features/FriendRequestsDialog
 import { CreateGroupDialog } from '@/components/features/CreateGroupDialog';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { UserProfileDialog } from '@/components/features/UserProfileDialog';
+
+import { ProfileSettingsDialog } from '@/components/features/ProfileSettingsDialog';
+import { Settings } from 'lucide-react';
 
 interface Conversation {
   id: string;
@@ -34,7 +39,9 @@ export function SidebarLeft() {
   
   const [friends, setFriends] = useState<IUser[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeTab, setActiveTab] = useState<'groups' | 'friends'>('groups');
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<IUser | null>(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -122,7 +129,7 @@ export function SidebarLeft() {
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-4">
           <h1 className="font-bold text-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-            Moji
+            Salala
           </h1>
           <div className="flex items-center gap-2">
             <FriendRequestsDialog>
@@ -151,53 +158,20 @@ export function SidebarLeft() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b">
-        <button
-          onClick={() => setActiveTab('groups')}
-          className={`flex-1 py-3 px-4 text-sm font-medium transition-colors relative ${
-            activeTab === 'groups' 
-              ? 'text-foreground' 
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <Users className="h-4 w-4" />
-            NHÓM CHAT
-          </div>
-          {activeTab === 'groups' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500" />
-          )}
-        </button>
-        
-        <button
-          onClick={() => setActiveTab('friends')}
-          className={`flex-1 py-3 px-4 text-sm font-medium transition-colors relative ${
-            activeTab === 'friends' 
-              ? 'text-foreground' 
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <UserIcon className="h-4 w-4" />
-            BẠN BÈ
-          </div>
-          {activeTab === 'friends' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500" />
-          )}
-        </button>
-      </div>
-
       {/* Content */}
       <ScrollArea className="flex-1">
-      {/* Groups Tab */}
-      {activeTab === 'groups' && (
-        <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
-            {conversations.filter(c => c.isGroup).map((conv) => (
+        <div className="p-2 space-y-4">
+          
+          {/* Groups Section */}
+          <div className="space-y-1">
+             <div className="px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider flex items-center justify-between">
+                <span>NHÓM CHAT</span>
+                <span className="bg-muted px-2 py-0.5 rounded-full text-[10px]">{groupChats.length}</span>
+             </div>
+             {groupChats.map((conv) => (
               <div
                 key={conv.id}
-                onClick={() => handleConversationClick(conv.id)}
+                onClick={() => setActiveConversationId(conv.id)}
                 className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
                   activeConversationId === conv.id
                     ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30'
@@ -214,9 +188,9 @@ export function SidebarLeft() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <span className="font-medium truncate">{conv.name || 'Nhóm chat'}</span>
-                    {conv.unreadCount > 0 && (
+                    {(conv as any).unreadCount > 0 && (
                       <Badge variant="destructive" className="ml-2 h-5 min-w-5 flex items-center justify-center px-1.5">
-                        {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
+                        {(conv as any).unreadCount > 99 ? '99+' : (conv as any).unreadCount}
                       </Badge>
                     )}
                   </div>
@@ -226,20 +200,22 @@ export function SidebarLeft() {
                 </div>
               </div>
             ))}
-            {conversations.filter(c => c.isGroup).length === 0 && (
-              <div className="text-center text-sm text-muted-foreground py-8">
-                Chưa có nhóm chat nào
+            {groupChats.length === 0 && (
+               <div className="text-center text-xs text-muted-foreground py-4 italic opacity-70">
+                Chưa có nhóm nào
               </div>
             )}
           </div>
-        </ScrollArea>
-      )}
 
-      {/* Friends Tab */}
-      {activeTab === 'friends' && (
-        <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
-            {friends.map((friend) => {
+          <Separator />
+  
+          {/* Friends Section */}
+          <div className="space-y-1">
+             <div className="px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider flex items-center justify-between">
+                <span>BẠN BÈ</span>
+                <span className="bg-muted px-2 py-0.5 rounded-full text-[10px]">{friends.length}</span>
+             </div>
+             {friends.map((friend) => {
               const friendConv = conversations.find(c => 
                 !c.isGroup && c.participantIds.includes(friend.id)
               );
@@ -254,8 +230,11 @@ export function SidebarLeft() {
                       : 'hover:bg-accent/50'
                   }`}
                 >
-                  <div className="relative">
-                    <Avatar className="h-11 w-11">
+                  <div className="relative cursor-pointer" onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedProfileUser(friend);
+                  }}>
+                    <Avatar className="h-11 w-11 hover:opacity-80 transition-opacity">
                       <AvatarImage src={friend.avatar} />
                       <AvatarFallback>
                         {friend.username.slice(0, 2).toUpperCase()}
@@ -265,12 +244,12 @@ export function SidebarLeft() {
                       <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></span>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0" onClick={() => handleFriendClick(friend.id)}>
                     <div className="flex items-center justify-between">
                       <span className="font-medium truncate">{friend.username}</span>
-                      {friendConv?.unreadCount > 0 && (
+                      {friendConv && (friendConv as any).unreadCount > 0 && (
                         <Badge variant="destructive" className="ml-2 h-5 min-w-5 flex items-center justify-center px-1.5">
-                          {friendConv.unreadCount > 99 ? '99+' : friendConv.unreadCount}
+                          {(friendConv as any).unreadCount > 99 ? '99+' : (friendConv as any).unreadCount}
                         </Badge>
                       )}
                     </div>
@@ -282,33 +261,50 @@ export function SidebarLeft() {
               );
             })}
             {friends.length === 0 && (
-              <div className="text-center text-sm text-muted-foreground py-8">
-                Chưa có bạn bè nào
+               <div className="text-center text-xs text-muted-foreground py-4 italic opacity-70">
+                Chưa có bạn bè
               </div>
             )}
           </div>
-        </ScrollArea>
-      )}
-      {/* User Profile Footer */}
+          
+        </div>
+      </ScrollArea>
+      
       <div className="p-4 border-t mt-auto">
-        <div className="flex items-center justify-between gap-3">
-             <div className="flex items-center gap-2 flex-1 overflow-hidden">
-                <Avatar className="h-9 w-9">
-                    <AvatarImage src={user?.avatar} />
-                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
-                      {user?.username?.slice(0,2).toUpperCase() || 'ME'}
-                    </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 overflow-hidden">
-                  <div className="font-medium text-sm truncate">{user?.username || 'Guest'}</div>
-                  <div className="text-xs text-muted-foreground">Đang hoạt động</div>
-                </div>
-             </div>
-             <Button variant="ghost" size="icon" onClick={handleLogout} title="Đăng xuất">
-                 <LogOut className="h-4 w-4" />
-             </Button>
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => user && setSelectedProfileUser(user as any)}>
+            <AvatarImage src={user?.avatar || ''} />
+            <AvatarFallback>{user?.username?.slice(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{user?.username}</p>
+            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)} title="Cài đặt">
+            <Settings className="h-4 w-4" />
+          </Button>
+          <ThemeToggle />
         </div>
       </div>
+
+      <CreateGroupDialog 
+        open={showCreateGroup} 
+        onOpenChange={setShowCreateGroup}
+        friends={friends}
+        currentUserId={user?.id || ''}
+      />
+
+      <UserProfileDialog 
+        user={selectedProfileUser} 
+        open={!!selectedProfileUser} 
+        onOpenChange={(open) => !open && setSelectedProfileUser(null)} 
+      />
+      
+      <ProfileSettingsDialog
+        open={showSettings}
+        onOpenChange={setShowSettings}
+        currentUser={user as any}
+      />
     </div>
   );
 }
