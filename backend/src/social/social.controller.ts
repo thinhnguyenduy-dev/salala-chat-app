@@ -107,4 +107,8 @@ export class SocialController {
         avatar: body.avatar
     });
   }
+  @Get('conversation/:conversationId/media')
+  async getConversationMedia(@Param('conversationId') conversationId: string) {
+    return this.socialService.getConversationMedia(conversationId);
+  }
 }

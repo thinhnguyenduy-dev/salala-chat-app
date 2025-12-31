@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadFile } from '@/lib/upload';
 import Image from 'next/image';
 import { useState, useRef, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useSocket } from '@/hooks/useSocket';
 import { useMessagesInfinite } from '@/hooks/useMessagesInfinite';
 import { useChatStore } from '@/store/useChatStore';
@@ -50,7 +51,7 @@ export function ChatArea() {
             fileUrl = await uploadFile(selectedFile);
         } catch (e) {
             console.error(e);
-            alert('Upload failed: ' + (e as Error).message);
+            toast.error('Upload failed: ' + (e as Error).message);
             setIsUploading(false);
             return;
         }

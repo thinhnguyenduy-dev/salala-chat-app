@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users, X } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useTranslation } from 'react-i18next';
 
 interface Friend {
   id: string;
@@ -17,11 +19,18 @@ interface Friend {
   avatar?: string;
 }
 
-export function CreateGroupDialog({ children }: { children: React.ReactNode }) {
+export function CreateGroupDialog({ 
+  children, 
+  initialSelectedIds = [] 
+}: { 
+  children: React.ReactNode;
+  initialSelectedIds?: string[];
+}) {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [groupName, setGroupName] = useState('');
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
+  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set(initialSelectedIds));
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -61,7 +70,7 @@ export function CreateGroupDialog({ children }: { children: React.ReactNode }) {
 
   const handleCreateGroup = async () => {
     if (!user?.id || !groupName.trim() || selectedFriends.size < 2) {
-      alert('Vui lòng nhập tên nhóm và chọn ít nhất 2 bạn bè');
+      toast.warning(t('toast.group_validation'));
       return;
     }
 
@@ -83,11 +92,11 @@ export function CreateGroupDialog({ children }: { children: React.ReactNode }) {
         // Optionally refresh conversations list
         window.location.reload(); // Simple refresh for now
       } else {
-        alert('Không thể tạo nhóm');
+        toast.error(t('toast.group_create_fail'));
       }
     } catch (err) {
       console.error(err);
-      alert('Lỗi khi tạo nhóm');
+      toast.error(t('toast.group_create_fail'));
     } finally {
       setLoading(false);
     }
@@ -100,14 +109,14 @@ export function CreateGroupDialog({ children }: { children: React.ReactNode }) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Tạo nhóm chat mới</DialogTitle>
+          <DialogTitle>{t('dialog.create_group_title')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium mb-2 block">Tên nhóm</label>
+            <label className="text-sm font-medium mb-2 block">{t('dialog.group_name')}</label>
             <Input
-              placeholder="Nhập tên nhóm..."
+              placeholder={t('dialog.group_name_placeholder')}
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
             />
@@ -115,7 +124,7 @@ export function CreateGroupDialog({ children }: { children: React.ReactNode }) {
 
           <div>
             <label className="text-sm font-medium mb-2 block">
-              Chọn thành viên ({selectedFriends.size} đã chọn)
+              {t('dialog.select_members')} ({selectedFriends.size})
             </label>
             <ScrollArea className="h-64 border rounded-lg p-2">
               {friends.length > 0 ? (
@@ -145,7 +154,7 @@ export function CreateGroupDialog({ children }: { children: React.ReactNode }) {
                 </div>
               ) : (
                 <div className="text-center text-sm text-muted-foreground py-8">
-                  Không có bạn bè nào
+                  {t('dialog.no_friends_found')}
                 </div>
               )}
             </ScrollArea>
@@ -153,14 +162,14 @@ export function CreateGroupDialog({ children }: { children: React.ReactNode }) {
 
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Hủy
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={handleCreateGroup}
               disabled={loading || !groupName.trim() || selectedFriends.size < 2}
             >
               <Users className="h-4 w-4 mr-2" />
-              Tạo nhóm
+              {t('common.create_group')}
             </Button>
           </div>
         </div>

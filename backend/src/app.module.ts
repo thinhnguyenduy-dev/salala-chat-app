@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 import { ChatModule } from './chat/chat.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -15,6 +17,10 @@ import { NotificationModule } from './notification/notification.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{
+        ttl: 60000,
+        limit: 100, // 100 requests per minute
+    }]),
     PrismaModule, 
     RedisModule, 
     ChatModule, 
@@ -24,6 +30,12 @@ import { NotificationModule } from './notification/notification.module';
     NotificationModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+      AppService,
+      {
+          provide: APP_GUARD,
+          useClass: ThrottlerGuard,
+      }
+  ],
 })
 export class AppModule {}

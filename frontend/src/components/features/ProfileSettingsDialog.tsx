@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +65,8 @@ export function ProfileSettingsDialog({ open, onOpenChange, currentUser }: Profi
           setAvatar(url);
       } catch (error) {
           console.error("Avatar upload failed:", error);
-          alert(t('common.upload_failed'));
+          console.error("Avatar upload failed:", error);
+          toast.error(t('common.upload_failed'));
       } finally {
           setIsUploading(false);
       }
@@ -103,14 +105,16 @@ export function ProfileSettingsDialog({ open, onOpenChange, currentUser }: Profi
        }
 
        onOpenChange(false);
-       alert(t('common.success'));
+       onOpenChange(false);
+       toast.success(t('common.success'));
        // We don't necessarily need reload if we updated the store, SidebarLeft should react to store user change.
        // But to be safe and ensure all other components (like chat header) update, we can reload or just trust React.
        // Let's trust React first. SidebarLeft listens to `user` from store.
        
     } catch (e) {
         console.error(e);
-        alert(t('profile.update_error'));
+        console.error(e);
+        toast.error(t('profile.update_error'));
     } finally {
         setIsLoading(false);
     }

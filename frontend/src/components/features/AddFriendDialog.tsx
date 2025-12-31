@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,7 @@ export function AddFriendDialog({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         setSentRequests(prev => new Set(prev).add(receiverId));
       } else {
-        alert("Failed to send request. Maybe already sent?");
+        toast.error("Failed to send request. Maybe already sent?");
       }
     } catch (err) {
       console.error(err);

@@ -13,6 +13,8 @@ import { JwtService } from '@nestjs/jwt';
 import { RedisService } from '../redis/redis.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
+import { CreateMessageDto } from './dto/create-message.dto';
+import { UsePipes, ValidationPipe } from '@nestjs/common';
 
 @WebSocketGateway({ cors: { origin: '*' } })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -104,9 +106,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('sendMessage')
+  @UsePipes(new ValidationPipe({ transform: true }))
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { conversationId: string; content: string; fileUrl?: string },
+    @MessageBody() payload: CreateMessageDto,
   ) {
     const userId = client.data.userId;
     
@@ -143,7 +146,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.sendPushNotificationsToOfflineUsers(
       conversation,
       userId,
-      payload.content,
+      payload.content || (payload.fileUrl ? 'Sent an image' : 'Sent a message'),
     );
 
     return message;

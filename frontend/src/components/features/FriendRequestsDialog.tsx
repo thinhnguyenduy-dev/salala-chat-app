@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,6 +9,7 @@ import { Bell, Check, X } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { useTranslation } from 'react-i18next';
 
 interface FriendRequest {
   id: string;
@@ -22,6 +24,7 @@ interface FriendRequest {
 }
 
 export function FriendRequestsDialog({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,7 +67,7 @@ export function FriendRequestsDialog({ children }: { children: React.ReactNode }
       if (res.ok) {
         setRequests(prev => prev.filter(r => r.id !== requestId));
       } else {
-        alert("Failed to accept request");
+        toast.error(t('toast.req_accepted_fail'));
       }
     } catch (err) {
       console.error(err);
@@ -99,7 +102,7 @@ export function FriendRequestsDialog({ children }: { children: React.ReactNode }
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Lời mời kết bạn</DialogTitle>
+          <DialogTitle>{t('dialog.friend_requests_title')}</DialogTitle>
         </DialogHeader>
 
         <div className="mt-4">

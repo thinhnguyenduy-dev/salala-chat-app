@@ -59,6 +59,8 @@ model Conversation {
   messages    Message[] @relation("ConversationMessages")
   
   participants User[] @relation(fields: [participantIds], references: [id])
+  
+  @@index([participantIds])
 }
 
 model Message {
@@ -77,6 +79,7 @@ model Message {
 
   @@index([conversationId])
   @@index([senderId])
+  @@index([conversationId, createdAt])
 }
 
 model ConversationRead {

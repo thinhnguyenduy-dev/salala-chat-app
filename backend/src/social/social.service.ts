@@ -253,6 +253,9 @@ export class SocialService {
         email: true,
         avatar: true,
         status: true,
+        displayName: true,
+        phoneNumber: true,
+        dateOfBirth: true,
       },
     });
 
@@ -342,5 +345,24 @@ export class SocialService {
     });
 
     return { success: true };
+  }
+  async getConversationMedia(conversationId: string) {
+    const messages = await this.prisma.message.findMany({
+      where: {
+        conversationId,
+        fileUrl: { not: null },
+      },
+      select: {
+        id: true,
+        fileUrl: true,
+        content: true,
+        createdAt: true,
+        sender: {
+          select: { username: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return messages;
   }
 }
