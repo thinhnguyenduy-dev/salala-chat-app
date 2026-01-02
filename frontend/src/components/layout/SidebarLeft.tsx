@@ -22,27 +22,22 @@ import { Settings } from 'lucide-react';
 import '@/lib/i18n'; // Init i18n
 import { useTranslation } from 'react-i18next';
 
-interface Conversation {
-  id: string;
-  name?: string;
-  isGroup: boolean;
-  participantIds: string[];
-  participants?: IUser[];
-  lastMessage?: {
-    content?: string;
-    createdAt: Date;
-  };
-}
+// Removed local Conversation interface in favor of IConversation from @repo/shared
 
 export function SidebarLeft() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuthStore();
-  const { setActiveConversationId, activeConversationId } = useChatStore();
+
+  const { 
+    setActiveConversationId, 
+    activeConversationId, 
+    conversations, 
+    setConversations 
+  } = useChatStore();
   
   const [friends, setFriends] = useState<IUser[]>([]);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  // const [conversations, setConversations] = useState<Conversation[]>([]); // Removed local state
   const [showSettings, setShowSettings] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<IUser | null>(null);
 
@@ -63,7 +58,7 @@ export function SidebarLeft() {
          fetch(`${apiUrl}/social/conversations/${user.id}`)
            .then(res => res.json())
            .then(data => {
-              if (Array.isArray(data)) setConversations(data);
+              if (Array.isArray(data)) setConversations(data); // Update store
            })
            .catch(err => console.error(err));
        };
@@ -299,12 +294,7 @@ export function SidebarLeft() {
         </div>
       </div>
 
-      <CreateGroupDialog 
-        open={showCreateGroup} 
-        onOpenChange={setShowCreateGroup}
-        friends={friends}
-        currentUserId={user?.id || ''}
-      />
+
 
       <UserProfileDialog 
         user={selectedProfileUser} 

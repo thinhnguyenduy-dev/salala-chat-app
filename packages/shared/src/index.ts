@@ -27,6 +27,7 @@ export interface IConversation {
   participantIds: string[];
   lastMessageId?: string;
   updatedAt: Date;
+  unreadCount?: number;
 }
 
 export interface IMessage {

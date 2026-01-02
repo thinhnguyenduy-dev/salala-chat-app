@@ -1,11 +1,13 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { IUser, IConversation, IFriendRequest } from '@repo/shared';
+import { ChatGateway } from '../chat/chat.gateway';
 
 @Injectable()
 export class SocialService {
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => ChatGateway)) private readonly chatGateway: ChatGateway,
   ) {}
 
   async sendFriendRequest(senderId: string, receiverId: string) {
@@ -99,10 +101,39 @@ export class SocialService {
     // Convert to Map for O(1) lookup
     const userMap = new Map(users.map(u => [u.id, u]));
 
+    // Fetch unread counts
+    const unreadCounts = await Promise.all(
+      convers.map(async (c) => {
+        const readRecord = await this.prisma.conversationRead.findUnique({
+          where: {
+            conversationId_userId: {
+              conversationId: c.id,
+              userId: userId,
+            },
+          },
+        });
+
+        const lastReadTime = readRecord?.updatedAt || new Date(0); 
+        
+        const count = await this.prisma.message.count({
+          where: {
+            conversationId: c.id,
+            createdAt: { gt: lastReadTime },
+            senderId: { not: userId }, 
+          },
+        });
+        
+        return { id: c.id, count };
+      })
+    );
+
+    const unreadMap = new Map(unreadCounts.map(u => [u.id, u.count]));
+
     // Attach participants
     return convers.map(c => ({
       ...c,
       participants: c.participantIds.map(pid => userMap.get(pid)).filter(Boolean),
+      unreadCount: unreadMap.get(c.id) || 0,
     }));
   }
 
@@ -364,5 +395,27 @@ export class SocialService {
       orderBy: { createdAt: 'desc' },
     });
     return messages;
+  }
+
+  async markAsRead(userId: string, conversationId: string) {
+    // Find the latest message to mark as read point (optional, but good for sync)
+    // For now, simple Upsert on updatedAt is enough for our logic
+    
+    return this.prisma.conversationRead.upsert({
+      where: {
+        conversationId_userId: {
+          conversationId,
+          userId,
+        },
+      },
+      create: {
+        conversationId,
+        userId,
+        updatedAt: new Date(),
+      },
+      update: {
+        updatedAt: new Date(),
+      },
+    });
   }
 }

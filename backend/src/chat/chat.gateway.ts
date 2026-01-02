@@ -46,6 +46,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const userId = payload.sub;
 
       client.data.userId = userId;
+      client.join(userId); // Join personal room for notifications
       await this.redisService.setUserOnline(userId, client.id);
       
       // Update database status
@@ -139,8 +140,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         data: { lastMessageId: message.id }
     });
 
-    // Emit to room
-    this.server.to(payload.conversationId).emit('newMessage', message);
+    // Emit to all participants (their personal rooms)
+    // This ensures they get the message even if they haven't joined the conversation room (e.g. for unread count in sidebar)
+    this.server.to(conversation.participantIds).emit('newMessage', message);
 
     // Send push notifications to participants who are not in the room
     await this.sendPushNotificationsToOfflineUsers(
@@ -222,5 +224,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         message: 'You have been added to a new group',
       });
     });
+  }
+  // Method to notify user of a new friend request
+  notifyFriendRequest(receiverId: string, request: any) {
+    this.server.to(receiverId).emit('newFriendRequest', request);
   }
 }

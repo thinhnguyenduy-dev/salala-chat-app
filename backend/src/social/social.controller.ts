@@ -111,4 +111,12 @@ export class SocialController {
   async getConversationMedia(@Param('conversationId') conversationId: string) {
     return this.socialService.getConversationMedia(conversationId);
   }
+
+  @Post('conversation/:conversationId/read')
+  async markAsRead(
+    @Param('conversationId') conversationId: string,
+    @Body() body: { userId: string }
+  ) {
+    return this.socialService.markAsRead(body.userId, conversationId);
+  }
 }

@@ -49,10 +49,18 @@ export function FriendRequestsDialog({ children }: { children: React.ReactNode }
   };
 
   useEffect(() => {
-    if (open) {
-      fetchRequests();
+    if (user?.id) {
+       fetchRequests();
+
+       const handleNewRequest = () => {
+         fetchRequests();
+         toast.info(t('common.new_friend_request') || 'New friend request received');
+       };
+
+       window.addEventListener('newFriendRequest', handleNewRequest);
+       return () => window.removeEventListener('newFriendRequest', handleNewRequest);
     }
-  }, [open, user?.id]);
+  }, [user?.id]);
 
   const handleAccept = async (requestId: string) => {
     if (!user) return;

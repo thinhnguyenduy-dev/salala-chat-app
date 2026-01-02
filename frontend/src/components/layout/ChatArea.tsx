@@ -25,6 +25,7 @@ export function ChatArea() {
   const { t } = useTranslation();
   const activeConversationId = useChatStore((state) => state.activeConversationId);
   const messagesMap = useChatStore((state) => state.messages);
+  const markOneAsRead = useChatStore((state) => state.markOneAsRead); // Direct selector for stability
   const realtimeMessages = activeConversationId ? messagesMap[activeConversationId] || [] : [];
   
   const { user } = useAuthStore();
@@ -40,6 +41,23 @@ export function ChatArea() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   
   const { socket, sendMessage: socketSendMessage, joinRoom } = useSocket();
+  const conversations = useChatStore((state) => state.conversations);
+  
+  // Mark as read when active conversation changes
+  useEffect(() => {
+    if (activeConversationId && user?.id) {
+       // Optimistic update
+       markOneAsRead(activeConversationId);
+       
+       // Call API
+       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+       fetch(`${apiUrl}/social/conversation/${activeConversationId}/read`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id }),
+       }).catch(console.error);
+    }
+  }, [activeConversationId, user?.id, markOneAsRead]);
 
   const handleSendMessage = async () => {
     if (!activeConversationId || (!inputText.trim() && !selectedFile)) return;

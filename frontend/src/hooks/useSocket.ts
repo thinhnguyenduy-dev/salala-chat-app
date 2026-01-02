@@ -27,6 +27,7 @@ export const useSocket = (tokenProp?: string | null) => {
     });
 
     socketRef.current.on('newMessage', (message: IMessage) => {
+      console.log('[Socket] Received newMessage:', message);
       addMessage(message);
     });
 
@@ -43,6 +44,11 @@ export const useSocket = (tokenProp?: string | null) => {
         console.log('New group created:', data);
         // Trigger a refresh of conversations
         window.dispatchEvent(new CustomEvent('refreshConversations'));
+      });
+
+      socketRef.current.on('newFriendRequest', (data: any) => {
+        console.log('New friend request:', data);
+        window.dispatchEvent(new CustomEvent('newFriendRequest', { detail: data }));
       });
     }
 

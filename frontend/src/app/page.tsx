@@ -14,7 +14,7 @@ export default function Home() {
   const { isAuthenticated } = useAuthStore();
   const [isHydrated, setIsHydrated] = useState(false);
   
-  useSocket();
+  // useSocket(); // Removed to prevent duplicate connection (ChatArea handles it)
   useNotifications();
 
   // Wait for zustand to hydrate from localStorage
