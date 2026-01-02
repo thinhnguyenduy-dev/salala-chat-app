@@ -1,9 +1,6 @@
 "use client";
 
-import { SidebarLeft } from "@/components/layout/SidebarLeft";
-import { ChatArea } from "@/components/layout/ChatArea";
-import { SidebarRight } from "@/components/layout/SidebarRight";
-import { useSocket } from "@/hooks/useSocket";
+import { MainLayout } from "@/components/layout/MainLayout";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -34,10 +31,6 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <SidebarLeft />
-      <ChatArea />
-      <SidebarRight />
-    </div>
+    <MainLayout />
   );
 }

@@ -85,17 +85,27 @@ export class SocialService {
       where: {
         participantIds: { has: userId },
       },
-      include: {
-        lastMessage: true,
-      },
       orderBy: { updatedAt: 'desc' },
     });
+
+    // Manually fetch lastMessage for each conversation
+    const conversWithLastMessage = await Promise.all(
+      convers.map(async (c) => {
+        let lastMessage = null;
+        if (c.lastMessageId) {
+          lastMessage = await this.prisma.message.findUnique({
+            where: { id: c.lastMessageId },
+          });
+        }
+        return { ...c, lastMessage };
+      })
+    );
 
     // Populate participants manually efficiently
     const allParticipantIds = Array.from(new Set(convers.flatMap(c => c.participantIds)));
     const users = await this.prisma.user.findMany({
       where: { id: { in: allParticipantIds } },
-      select: { id: true, username: true, email: true, status: true, createdAt: true, friendIds: true }, // Select safe fields
+      select: { id: true, username: true, displayName: true, email: true, status: true, createdAt: true, friendIds: true }, // Select safe fields
     });
     
     // Convert to Map for O(1) lookup
@@ -130,7 +140,7 @@ export class SocialService {
     const unreadMap = new Map(unreadCounts.map(u => [u.id, u.count]));
 
     // Attach participants
-    return convers.map(c => ({
+    return conversWithLastMessage.map(c => ({
       ...c,
       participants: c.participantIds.map(pid => userMap.get(pid)).filter(Boolean),
       unreadCount: unreadMap.get(c.id) || 0,
@@ -148,6 +158,9 @@ export class SocialService {
         sender: {
           select: { id: true, username: true, email: true },
         },
+        reads: {
+            select: { userId: true, readAt: true }
+        }
       },
     });
 
@@ -175,6 +188,7 @@ export class SocialService {
       select: {
           id: true,
           username: true,
+          displayName: true,
           email: true,
           avatar: true,
           status: true,
@@ -198,6 +212,7 @@ export class SocialService {
       select: {
          id: true,
          username: true,
+         displayName: true,
          email: true,
          avatar: true,
       },
@@ -216,6 +231,7 @@ export class SocialService {
           select: {
             id: true,
             username: true,
+            displayName: true,
             email: true,
             avatar: true,
           },
@@ -377,6 +393,15 @@ export class SocialService {
 
     return { success: true };
   }
+  async updateConversation(conversationId: string, data: { name?: string }) {
+    return this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        name: data.name,
+      },
+    });
+  }
+
   async getConversationMedia(conversationId: string) {
     const messages = await this.prisma.message.findMany({
       where: {

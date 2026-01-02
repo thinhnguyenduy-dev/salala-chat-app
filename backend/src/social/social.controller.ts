@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Request, Param, Query, Optional, Inject } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Request, Param, Query, Optional, Inject, Patch } from '@nestjs/common';
 import { SocialService } from './social.service';
 import { ChatGateway } from '../chat/chat.gateway';
 // Assuming we create an AuthGuard later or extract userId from mock/headers for now if Auth not fully ready?
@@ -107,6 +107,27 @@ export class SocialController {
         avatar: body.avatar
     });
   }
+
+  @Patch('conversation/:conversationId')
+  async updateConversation(
+    @Param('conversationId') conversationId: string,
+    @Body() body: { name: string }
+  ) {
+    const updated = await this.socialService.updateConversation(conversationId, { name: body.name });
+    // Notify via socket
+    if (this.chatGateway) {
+         // We don't have a specific event for "ConversationUpdated" yet in Gateway public API, 
+         // but we can add one or use a generic invalidation.
+         // Let's assume we want to broadcast to room.
+         // Wait, ChatGateway needs to expose server or a method.
+         // I'll check ChatGateway first.
+         // For now I'll just return it. Realtime update is better but I can do polling/refresh on frontend for MVP if needed.
+         // But "feature" implies proper logic.
+         this.chatGateway.server.to(conversationId).emit('conversationUpdated', updated);
+    }
+    return updated;
+  }
+
   @Get('conversation/:conversationId/media')
   async getConversationMedia(@Param('conversationId') conversationId: string) {
     return this.socialService.getConversationMedia(conversationId);

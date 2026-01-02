@@ -39,7 +39,8 @@ i18n
             upload_failed: "Upload failed",
             remove: "Remove",
             delete: "Delete",
-            close: "Close"
+            close: "Close",
+            is_typing: "is typing..."
           },
           profile: {
             title: "Profile Settings",
@@ -117,7 +118,8 @@ i18n
             upload_failed: "Tải lên thất bại",
             remove: "Xóa",
             delete: "Xóa",
-            close: "Đóng"
+            close: "Đóng",
+            is_typing: "đang soạn tin..."
           },
           profile: {
             title: "Cài đặt Profile",

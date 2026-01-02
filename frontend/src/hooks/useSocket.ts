@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useChatStore } from '../store/useChatStore';
 import { IMessage } from '@repo/shared';
@@ -24,6 +24,8 @@ export const useSocket = (tokenProp?: string | null) => {
 
     socketRef.current.on('connect', () => {
       console.log('Connected to socket');
+      // Trigger friends list refresh to get latest online status
+      window.dispatchEvent(new CustomEvent('refreshFriends'));
     });
 
     socketRef.current.on('newMessage', (message: IMessage) => {
@@ -36,6 +38,23 @@ export const useSocket = (tokenProp?: string | null) => {
       console.log('User status changed:', data);
       // Dispatch event to update UI
       window.dispatchEvent(new CustomEvent('userStatusChanged', { detail: data }));
+    });
+
+    // Listen for typing indicators
+    socketRef.current.on('userTyping', (data: { userId: string; conversationId: string }) => {
+      console.log('[Socket] User typing:', data);
+      window.dispatchEvent(new CustomEvent('userTyping', { detail: data }));
+    });
+
+    socketRef.current.on('userStopTyping', (data: { userId: string; conversationId: string }) => {
+      console.log('[Socket] User stopped typing:', data);
+      window.dispatchEvent(new CustomEvent('userStopTyping', { detail: data }));
+    });
+
+    // Listen for read receipts
+    socketRef.current.on('messagesRead', (data: { messageIds: string[]; userId: string; readAt: Date }) => {
+      console.log('[Socket] Messages read:', data);
+      window.dispatchEvent(new CustomEvent('messagesRead', { detail: data }));
     });
 
     // Listen for new group notifications
@@ -57,13 +76,25 @@ export const useSocket = (tokenProp?: string | null) => {
     };
   }, [token, addMessage, user?.id]);
 
-  const joinRoom = (conversationId: string) => {
+  const joinRoom = useCallback((conversationId: string) => {
     socketRef.current?.emit('joinRoom', { conversationId });
-  };
+  }, []);
 
-  const sendMessage = (conversationId: string, content: string, fileUrl?: string) => {
+  const sendMessage = useCallback((conversationId: string, content: string, fileUrl?: string) => {
     socketRef.current?.emit('sendMessage', { conversationId, content, fileUrl });
-  };
+  }, []);
 
-  return { socket: socketRef.current, joinRoom, sendMessage };
+  const emitTyping = useCallback((conversationId: string) => {
+    socketRef.current?.emit('typing', { conversationId });
+  }, []);
+
+  const emitStopTyping = useCallback((conversationId: string) => {
+    socketRef.current?.emit('stopTyping', { conversationId });
+  }, []);
+
+  const emitMarkAsRead = useCallback((messageIds: string[]) => {
+    socketRef.current?.emit('markMessagesAsRead', { messageIds });
+  }, []);
+
+  return { socket: socketRef.current, joinRoom, sendMessage, emitTyping, emitStopTyping, emitMarkAsRead };
 };

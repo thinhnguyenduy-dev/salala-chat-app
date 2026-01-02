@@ -71,6 +71,17 @@ export function SidebarLeft() {
          fetchData();
        };
 
+       // Listen for friends refresh (triggered on socket connect)
+       const handleRefreshFriends = () => {
+         console.log('Refreshing friends status...');
+         fetch(`${apiUrl}/social/friends/${user.id}`)
+           .then(res => res.json())
+           .then(data => {
+             if (Array.isArray(data)) setFriends(data);
+           })
+           .catch(err => console.error(err));
+       };
+
        // Listen for user status changes
        const handleStatusChange = (event: any) => {
          const { userId, status } = event.detail;
@@ -82,10 +93,12 @@ export function SidebarLeft() {
        };
 
        window.addEventListener('refreshConversations', handleRefresh);
+       window.addEventListener('refreshFriends', handleRefreshFriends);
        window.addEventListener('userStatusChanged', handleStatusChange);
 
        return () => {
          window.removeEventListener('refreshConversations', handleRefresh);
+         window.removeEventListener('refreshFriends', handleRefreshFriends);
          window.removeEventListener('userStatusChanged', handleStatusChange);
        };
     }
@@ -235,7 +248,7 @@ export function SidebarLeft() {
                     <Avatar className="h-11 w-11 hover:opacity-80 transition-opacity">
                       <AvatarImage src={friend.avatar} />
                       <AvatarFallback>
-                        {friend.username.slice(0, 2).toUpperCase()}
+                        {(friend.displayName || friend.username).slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     {friend.status === 'online' && (
@@ -244,7 +257,7 @@ export function SidebarLeft() {
                   </div>
                   <div className="flex-1 min-w-0" onClick={() => handleFriendClick(friend.id)}>
                     <div className="flex items-center justify-between">
-                      <span className="font-medium truncate">{friend.username}</span>
+                      <span className="font-medium truncate">{friend.displayName || friend.username}</span>
                       {friendConv && (friendConv as any).unreadCount > 0 && (
                         <Badge variant="destructive" className="ml-2 h-5 min-w-5 flex items-center justify-center px-1.5">
                           {(friendConv as any).unreadCount > 99 ? '99+' : (friendConv as any).unreadCount}
@@ -272,14 +285,17 @@ export function SidebarLeft() {
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => user && setSelectedProfileUser(user as any)}>
             <AvatarImage src={user?.avatar || ''} />
-            <AvatarFallback>{user?.username?.slice(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarFallback>{(user?.displayName || user?.username)?.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user?.username}</p>
+            <p className="text-sm font-medium truncate">{user?.displayName || user?.username}</p>
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
           <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)} title={t('common.settings')}>
             <Settings className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={handleLogout} title={t('auth.logout') || 'Đăng xuất'}>
+            <LogOut className="h-4 w-4 text-destructive" />
           </Button>
            <Button 
             variant="ghost" 

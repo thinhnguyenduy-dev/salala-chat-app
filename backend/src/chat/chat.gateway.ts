@@ -68,18 +68,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleDisconnect(client: Socket) {
     const userId = client.data.userId;
     if (userId) {
-      await this.redisService.setUserOffline(userId);
+      const isFullyOffline = await this.redisService.setUserOffline(userId, client.id);
       
-      // Update database status
-      await this.prismaService.user.update({
-        where: { id: userId },
-        data: { status: 'offline' },
-      });
+      // Only update database and broadcast if user has no more active connections
+      if (isFullyOffline) {
+        await this.prismaService.user.update({
+          where: { id: userId },
+          data: { status: 'offline' },
+        });
 
-      // Broadcast to all clients that this user is offline
-      this.server.emit('userStatusChanged', { userId, status: 'offline' });
-      
-      console.log(`User ${userId} disconnected`);
+        // Broadcast to all clients that this user is offline
+        this.server.emit('userStatusChanged', { userId, status: 'offline' });
+        
+        console.log(`User ${userId} fully disconnected (all sockets closed)`);
+      } else {
+        console.log(`User ${userId} socket ${client.id} disconnected (still has other active connections)`);
+      }
     }
   }
 
@@ -211,6 +215,105 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } catch (error) {
       console.error('Error sending push notifications:', error);
       // Don't throw - notification failure shouldn't break message sending
+    }
+  }
+
+  @SubscribeMessage('typing')
+  async handleTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { conversationId: string },
+  ) {
+    const userId = client.data.userId;
+    
+    // Broadcast to other users in the room (except sender)
+    client.to(payload.conversationId).emit('userTyping', {
+      userId,
+      conversationId: payload.conversationId,
+    });
+  }
+
+  @SubscribeMessage('stopTyping')
+  async handleStopTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { conversationId: string },
+  ) {
+    const userId = client.data.userId;
+    
+    client.to(payload.conversationId).emit('userStopTyping', {
+      userId,
+      conversationId: payload.conversationId,
+    });
+  }
+
+  @SubscribeMessage('markMessagesAsRead')
+  async handleMarkMessagesAsRead(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { messageIds: string[] },
+  ) {
+    const userId = client.data.userId;
+    
+    try {
+      // Save read receipts to database
+      const readReceipts = await Promise.all(
+        payload.messageIds.map(async (messageId) => {
+          // Use upsert to avoid duplicates
+          return this.prismaService.messageRead.upsert({
+            where: {
+              messageId_userId: {
+                messageId,
+                userId,
+              },
+            },
+            create: {
+              messageId,
+              userId,
+            },
+            update: {
+              readAt: new Date(),
+            },
+          });
+        })
+      );
+
+      // Get conversation ID from first message to broadcast to room
+      if (payload.messageIds.length > 0) {
+        const message = await this.prismaService.message.findUnique({
+          where: { id: payload.messageIds[0] },
+          select: { conversationId: true },
+        });
+
+        if (message) {
+          // Update ConversationRead to mark conversation as read up to this point
+          // This ensures getConversations unread count is correct
+          await this.prismaService.conversationRead.upsert({
+             where: {
+               conversationId_userId: {
+                 conversationId: message.conversationId,
+                 userId: userId
+               }
+             },
+             create: {
+               conversationId: message.conversationId,
+               userId: userId,
+             },
+             update: {
+                updatedAt: new Date(), // Set to now, effectively marking all current msgs as read
+             }
+          });
+
+          // Broadcast to all participants in the conversation
+          this.server.to(message.conversationId).emit('messagesRead', {
+            messageIds: payload.messageIds,
+            userId,
+            readAt: new Date(),
+          });
+        }
+      }
+
+      return { success: true, count: readReceipts.length };
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+      throw new WsException('Failed to mark messages as read');
     }
   }
 

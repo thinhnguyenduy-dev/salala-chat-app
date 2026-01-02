@@ -7,7 +7,7 @@ import { useChatStore } from '@/store/useChatStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { IUser } from '@repo/shared';
 import { Separator } from '@/components/ui/separator';
-import { Users, PlusCircle } from 'lucide-react';
+import { Users, PlusCircle, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CreateGroupDialog } from '@/components/features/CreateGroupDialog';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,37 @@ export function SidebarRight() {
   const [conversationInfo, setConversationInfo] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'media'>('info');
   const [media, setMedia] = useState<any[]>([]);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const setConversations = useChatStore((state) => state.setConversations);
+  const conversations = useChatStore((state) => state.conversations);
+
+  const handleSaveGroupName = async () => {
+    if (!activeConversationId || !newGroupName.trim()) return;
+
+    try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${apiUrl}/social/conversation/${activeConversationId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newGroupName })
+        });
+
+        if (res.ok) {
+            const updated = await res.json();
+            setConversationInfo(updated);
+            setIsEditingName(false);
+            
+            // Update global store
+            const updatedConversations = conversations.map(c => 
+                c.id === activeConversationId ? { ...c, name: newGroupName } : c
+            );
+            setConversations(updatedConversations);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+  };
 
   useEffect(() => {
     if (!activeConversationId) {
@@ -130,8 +161,31 @@ export function SidebarRight() {
                         )}
                     </div>
                     <div className="text-center">
-                        <h3 className="font-bold text-lg">
-                            {conversationInfo?.isGroup ? conversationInfo.name : participants[0]?.username}
+                        <h3 className="font-bold text-lg flex items-center gap-2 justify-center">
+                            {conversationInfo?.isGroup ? (
+                                isEditingName ? (
+                                    <div className="flex items-center gap-2">
+                                        <input 
+                                            className="border rounded px-2 py-1 text-sm text-black"
+                                            value={newGroupName}
+                                            onChange={(e) => setNewGroupName(e.target.value)}
+                                            autoFocus
+                                        />
+                                        <Button size="sm" onClick={handleSaveGroupName}>Lưu</Button>
+                                        <Button size="sm" variant="ghost" onClick={() => setIsEditingName(false)}>Hủy</Button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {conversationInfo.name}
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                                            setNewGroupName(conversationInfo.name);
+                                            setIsEditingName(true);
+                                        }}>
+                                            <Pencil className="h-3 w-3" />
+                                        </Button>
+                                    </>
+                                )
+                            ) : participants[0]?.username}
                         </h3>
                         {!conversationInfo?.isGroup && (
                              <div className="flex flex-col items-center gap-1 mt-1">
@@ -207,7 +261,7 @@ export function SidebarRight() {
                                 {participants[0]?.dateOfBirth && (
                                   <div className="flex justify-between border-b pb-2">
                                       <span className="text-muted-foreground">{t('profile.dob')}:</span>
-                                      <span className="font-medium text-right">
+                                      <span suppressHydrationWarning className="font-medium text-right">
                                         {format(new Date(participants[0].dateOfBirth), 'dd/MM/yyyy')}
                                       </span>
                                   </div>

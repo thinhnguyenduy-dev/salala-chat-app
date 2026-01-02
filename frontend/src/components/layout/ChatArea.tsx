@@ -3,11 +3,11 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Paperclip, Smile } from 'lucide-react';
+import { Send, Paperclip, Smile, Info } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadFile } from '@/lib/upload';
 import Image from 'next/image';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useSocket } from '@/hooks/useSocket';
 import { useMessagesInfinite } from '@/hooks/useMessagesInfinite';
@@ -20,12 +20,15 @@ import { IUser } from '@repo/shared';
 
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { useTranslation } from 'react-i18next';
+import { MessageList } from './MessageList';
 
 export function ChatArea() {
   const { t } = useTranslation();
   const activeConversationId = useChatStore((state) => state.activeConversationId);
   const messagesMap = useChatStore((state) => state.messages);
   const markOneAsRead = useChatStore((state) => state.markOneAsRead); // Direct selector for stability
+  const toggleInfoSidebarOpen = useChatStore((state) => state.toggleInfoSidebarOpen);
+  const isInfoSidebarOpen = useChatStore((state) => state.isInfoSidebarOpen);
   const realtimeMessages = activeConversationId ? messagesMap[activeConversationId] || [] : [];
   
   const { user } = useAuthStore();
@@ -40,27 +43,50 @@ export function ChatArea() {
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   
-  const { socket, sendMessage: socketSendMessage, joinRoom } = useSocket();
+  // Typing indicator state
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Read receipts state: Map<messageId, Set<userId>>
+  const [messageReadBy, setMessageReadBy] = useState<Map<string, Set<string>>>(new Map());
+  
+  const { socket, sendMessage: socketSendMessage, joinRoom, emitTyping, emitStopTyping, emitMarkAsRead } = useSocket();
   const conversations = useChatStore((state) => state.conversations);
   
-  // Mark as read when active conversation changes
-  useEffect(() => {
-    if (activeConversationId && user?.id) {
-       // Optimistic update
-       markOneAsRead(activeConversationId);
-       
-       // Call API
-       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-       fetch(`${apiUrl}/social/conversation/${activeConversationId}/read`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id }),
-       }).catch(console.error);
+  const lastTypingEmittedRef = useRef<number>(0);
+
+  // Handle typing indicator
+  const handleInputChange = (value: string) => {
+    setInputText(value);
+    
+    if (!activeConversationId || !emitTyping || !emitStopTyping) return;
+    
+    // Throttle emit typing: max once every 2 seconds
+    const now = Date.now();
+    if (now - lastTypingEmittedRef.current > 2000) {
+        emitTyping(activeConversationId);
+        lastTypingEmittedRef.current = now;
     }
-  }, [activeConversationId, user?.id, markOneAsRead]);
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    // Auto stop typing after 2 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      emitStopTyping(activeConversationId);
+    }, 2000);
+  };
 
   const handleSendMessage = async () => {
     if (!activeConversationId || (!inputText.trim() && !selectedFile)) return;
+    
+    // Stop typing when sending message
+    if (emitStopTyping && typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      emitStopTyping(activeConversationId);
+    }
     
     let fileUrl = undefined;
     if (selectedFile) {
@@ -116,41 +142,168 @@ export function ChatArea() {
   // Flattened: [10:00, 09:59... 09:57...]
   // Reversed for UI: [...09:57, ...09:59, 10:00] -> Correct chronological order.
   
-  const historyMessages = data?.pages.flatMap((page) => page.data) || [];
-  
-  // MERGE STRATEGY: 
-  // Real-time messages are usually *after* history.
-  // But history fetches might overlap if real-time messages came in while we were fetching?
-  // Ideally, use a Map to dedup by ID.
-  const allMessagesMap = new Map();
-  // Add history (reversed to be chronological for processing)
-  [...historyMessages].reverse().forEach(m => allMessagesMap.set(m.id, m));
-  // Add real-time
-  realtimeMessages.forEach(m => allMessagesMap.set(m.id, m));
-  
-  const displayMessages = Array.from(allMessagesMap.values());
+  const displayMessages = useMemo(() => {
+    const historyMessages = data?.pages.flatMap((page) => page.data) || [];
+    const allMessagesMap = new Map();
+    // Add history (reversed to be chronological for processing)
+    [...historyMessages].reverse().forEach(m => allMessagesMap.set(m.id, m));
+    // Add real-time
+    realtimeMessages.forEach(m => allMessagesMap.set(m.id, m));
+    return Array.from(allMessagesMap.values());
+  }, [data?.pages, realtimeMessages]);
+
+  // Clear unread count when opening chat
+  useEffect(() => {
+    if (activeConversationId) {
+      markOneAsRead(activeConversationId);
+    }
+  }, [activeConversationId, markOneAsRead]);
 
   // Join room when conversation changes
   useEffect(() => {
     if (activeConversationId && joinRoom) {
       joinRoom(activeConversationId);
-      
-      // Mark conversation as read when opening it
-      if (displayMessages.length > 0 && user?.id) {
-        const lastMessage = displayMessages[displayMessages.length - 1];
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        fetch(`${apiUrl}/social/conversation/mark-read`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            conversationId: activeConversationId,
-            userId: user.id,
-            lastMessageId: lastMessage.id,
-          }),
-        }).catch(err => console.error('Failed to mark as read:', err));
-      }
     }
-  }, [activeConversationId, joinRoom, displayMessages.length, user?.id]);
+  }, [activeConversationId, joinRoom]);
+
+  // Scroll to bottom on load/message update
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+         // Use setTimeout to ensure DOM is updated
+         setTimeout(() => {
+             const scrollContainer = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+             if (scrollContainer) {
+                scrollContainer.scrollTop = scrollContainer.scrollHeight;
+             }
+         }, 100);
+    }
+  }, [activeConversationId, displayMessages.length]);
+
+  // Listen for typing events
+  useEffect(() => {
+    const handleUserTyping = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { userId, conversationId } = customEvent.detail;
+      if (conversationId === activeConversationId) {
+        setTypingUsers(prev => new Set(prev).add(userId));
+      }
+    };
+    
+    const handleUserStopTyping = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { userId } = customEvent.detail;
+      setTypingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
+    };
+    
+    window.addEventListener('userTyping', handleUserTyping);
+    window.addEventListener('userStopTyping', handleUserStopTyping);
+    
+    return () => {
+      window.removeEventListener('userTyping', handleUserTyping);
+      window.removeEventListener('userStopTyping', handleUserStopTyping);
+    };
+  }, [activeConversationId]);
+
+  // Cleanup typing timeout on unmount or conversation change
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      // Stop typing when leaving conversation
+      if (activeConversationId && emitStopTyping) {
+        emitStopTyping(activeConversationId);
+      }
+    };
+  }, [activeConversationId, emitStopTyping]);
+
+  // Listen for read receipts events
+  useEffect(() => {
+    const handleMessagesRead = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { messageIds, userId } = customEvent.detail;
+      
+      setMessageReadBy(prev => {
+        const newMap = new Map(prev);
+        messageIds.forEach((msgId: string) => {
+          const readers = newMap.get(msgId) || new Set<string>();
+          readers.add(userId);
+          newMap.set(msgId, readers);
+        });
+        return newMap;
+      });
+    };
+    
+    window.addEventListener('messagesRead', handleMessagesRead);
+    
+    return () => {
+      window.removeEventListener('messagesRead', handleMessagesRead);
+    };
+  }, []);
+
+  // Hydrate read receipts from fetched messages (history)
+  useEffect(() => {
+    if (displayMessages.length > 0) {
+        setMessageReadBy(prev => {
+            const next = new Map(prev);
+            let changed = false;
+            displayMessages.forEach(msg => {
+                if ((msg as any).reads && Array.isArray((msg as any).reads)) {
+                    const existing = next.get(msg.id) || new Set();
+                    (msg as any).reads.forEach((r: any) => {
+                        if (!existing.has(r.userId) && r.userId !== user?.id) { // Don't count self if returned
+                            existing.add(r.userId);
+                            changed = true;
+                        }
+                    });
+                    // Also check if r.userId is not me? Backend returns all reads.
+                    // Usually we only care if OTHERS read MY message. 
+                    // But 'reads' array includes everyone. filtering happens in render (isOwnMessage check).
+                    // So just adding all userIds is fine.
+                    if (existing.size > 0) next.set(msg.id, existing);
+                }
+            });
+            return changed ? next : prev;
+        });
+    }
+  }, [displayMessages]);
+
+  // Track which messages we've already marked as read to avoid excessive API calls
+  const markedMessagesRef = useRef<Set<string>>(new Set());
+
+  // Auto-mark messages as read when they come into view
+  useEffect(() => {
+    if (!activeConversationId || !emitMarkAsRead || displayMessages.length === 0 || !user?.id) return;
+    
+    // Get unread messages (messages not sent by current user and not already marked)
+    const unreadMessages = displayMessages.filter(
+      msg => msg.senderId !== user.id && !markedMessagesRef.current.has(msg.id)
+    );
+    
+    if (unreadMessages.length > 0) {
+      const messageIds = unreadMessages.map(msg => msg.id);
+      
+      // Mark as read after a short delay to ensure user actually sees them
+      const timer = setTimeout(() => {
+        emitMarkAsRead(messageIds);
+        // Update local store to clear unread badge immediately
+        markOneAsRead(activeConversationId);
+        // Add to marked set to prevent re-marking
+        messageIds.forEach(id => markedMessagesRef.current.add(id));
+      }, 1000); // Increased delay to 1 second
+      
+      return () => clearTimeout(timer);
+    }
+  }, [displayMessages.length, activeConversationId, user?.id, emitMarkAsRead, markOneAsRead]); // Only depend on length, not entire array
+
+  // Clear marked messages when switching conversations
+  useEffect(() => {
+    markedMessagesRef.current.clear();
+  }, [activeConversationId]);
 
   // Auto-scroll to bottom on NEW real-time message (basic implementation)
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -183,7 +336,7 @@ export function ChatArea() {
             if (otherUserId) {
               const userRes = await fetch(`${apiUrl}/social/user/${otherUserId}`);
               const userData = await userRes.json();
-              setConversationName(userData.username);
+              setConversationName(userData.displayName || userData.username);
             }
           }
 
@@ -243,9 +396,14 @@ export function ChatArea() {
       }
   };
 
+  const handleProfileClick = useMemo(() => (u: IUser) => setSelectedProfileUser(u), []);
+  const handleImageClick = useMemo(() => (url: string) => setViewImage(url), []);
+
   if (!activeConversationId) {
     return <div className="flex-1 flex items-center justify-center text-muted-foreground">Chọn một cuộc trò chuyện</div>;
   }
+
+
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-background h-screen">
@@ -259,6 +417,10 @@ export function ChatArea() {
             </Avatar>
             <span className="font-bold">{conversationName}</span>
         </div>
+        
+        <Button variant="ghost" size="icon" onClick={() => toggleInfoSidebarOpen()} title="Thông tin hội thoại">
+            <Info className={`h-5 w-5 ${isInfoSidebarOpen ? 'text-primary' : 'text-muted-foreground'}`} />
+        </Button>
       </div>
 
       {/* Messages */}
@@ -270,57 +432,17 @@ export function ChatArea() {
                 {isFetchingNextPage && <span className="text-xs text-muted-foreground">Đang tải...</span>}
             </div>
 
-            {displayMessages.map((msg, i) => {
-                const isOwnMessage = msg.senderId === user?.id;
-                const sender = participants.get(msg.senderId);
-                
-                return (
-                  <div key={msg.id} className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''} group`}> 
-                      <Avatar className="h-8 w-8 mt-1 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => sender && setSelectedProfileUser(sender)}>
-                          <AvatarImage src={sender?.avatar} />
-                          <AvatarFallback className={isOwnMessage ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white' : ''}>
-                            {sender?.username?.slice(0,2).toUpperCase() || 'U'}
-                          </AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col max-w-[70%]">
-                          {!isOwnMessage && (
-                            <span className="text-xs text-muted-foreground mb-1 ml-1 cursor-pointer hover:underline" onClick={() => sender && setSelectedProfileUser(sender)}>
-                              {sender?.username || 'Unknown'}
-                            </span>
-                          )}
-                          <div className={`p-3 rounded-lg ${
-                            isOwnMessage 
-                              ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white' 
-                              : 'bg-muted'
-                          }`}>
-                               <p className={`${
-                                   /^[\p{Emoji}\u200d\s]+$/u.test(msg.content) && msg.content.length < 10 
-                                     ? 'text-4xl leading-relaxed' 
-                                     : 'text-sm'
-                               }`}>{msg.content}</p>
-                               {msg.fileUrl && (
-                                   <div className="mt-2 relative w-48 h-48 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewImage(msg.fileUrl)}>
-                                       <Image 
-                                          src={msg.fileUrl} 
-                                          alt="Shared image" 
-                                          fill 
-                                          className="object-cover rounded-md"
-                                       />
-                                   </div>
-                               )}
-                               <span className={`text-[10px] block mt-1 text-right ${
-                                 isOwnMessage ? 'opacity-80' : 'opacity-70'
-                               }`}>
-                                  {new Date(msg.createdAt).toLocaleTimeString('vi-VN', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit' 
-                                  })}
-                               </span>
-                          </div>
-                      </div>
-                  </div>
-                );
-            })}
+            <MessageList 
+                messages={displayMessages}
+                currentUser={user as any} 
+                participants={participants}
+                messageReadBy={messageReadBy}
+                isFetchingNextPage={isFetchingNextPage}
+                onProfileClick={handleProfileClick}
+                onImageClick={handleImageClick}
+                topRef={topRef}
+                lastMessageRef={lastMessageRef}
+            />
             <div ref={lastMessageRef} />
         </div>
       </ScrollArea>
@@ -340,6 +462,15 @@ export function ChatArea() {
 
 
       {/* Input Area */}
+      {/* Typing Indicator */}
+      {typingUsers.size > 0 && (
+          <div className="px-4 pb-2 text-xs text-muted-foreground italic animate-pulse">
+            {Array.from(typingUsers).map(uid => {
+                const p = participants.get(uid);
+                return p?.displayName || p?.username || 'Someone';
+            }).join(', ')} {t('common.is_typing') || 'đang soạn tin...'}
+          </div>
+      )}
       <div className="p-4 border-t bg-card/50 backdrop-blur">
         {selectedFile && (
             <div className="flex items-center gap-2 mb-2 p-2 bg-muted rounded-lg w-fit">
@@ -388,7 +519,7 @@ export function ChatArea() {
                 className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground" 
                 placeholder={isUploading ? t('common.uploading') : t('common.type_message')}
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={(e) => handleInputChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isUploading}
             />

@@ -52,10 +52,9 @@ model Conversation {
   name           String?
   isGroup        Boolean  @default(false)
   participantIds String[] @db.ObjectId
-  lastMessageId  String?  @db.ObjectId @unique
+  lastMessageId  String?  @db.ObjectId
   updatedAt      DateTime @updatedAt
 
-  lastMessage Message?  @relation("LastMessage", fields: [lastMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   messages    Message[] @relation("ConversationMessages")
   
   participants User[] @relation(fields: [participantIds], references: [id])
@@ -73,9 +72,7 @@ model Message {
 
   sender       User         @relation(fields: [senderId], references: [id])
   conversation Conversation @relation("ConversationMessages", fields: [conversationId], references: [id])
-  
-  // Back relation for lastMessage
-  lastMessageFor Conversation? @relation("LastMessage")
+  reads        MessageRead[]
 
   @@index([conversationId])
   @@index([senderId])
@@ -92,4 +89,17 @@ model ConversationRead {
   @@unique([conversationId, userId])
   @@index([userId])
   @@index([conversationId])
+}
+
+model MessageRead {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  messageId String   @db.ObjectId
+  userId    String   @db.ObjectId
+  readAt    DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id])
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
 }

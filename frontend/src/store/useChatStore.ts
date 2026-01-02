@@ -15,6 +15,11 @@ interface ChatState {
   setActiveConversationId: (id: string | null) => void;
   setOnlineUsers: (userIds: string[]) => void;
   markOneAsRead: (conversationId: string) => void;
+  
+  // UI State
+  isInfoSidebarOpen: boolean;
+  setInfoSidebarOpen: (isOpen: boolean) => void;
+  toggleInfoSidebarOpen: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -22,6 +27,7 @@ export const useChatStore = create<ChatState>((set) => ({
   conversations: [],
   activeConversationId: null,
   onlineUsers: [],
+  isInfoSidebarOpen: false, // Hidden by default
 
   setMessages: (conversationId, messages) =>
     set((state) => ({
@@ -79,5 +85,9 @@ export const useChatStore = create<ChatState>((set) => ({
     conversations: state.conversations.map(c => 
       c.id === conversationId ? { ...c, unreadCount: 0 } : c
     )
+
   })),
+
+  setInfoSidebarOpen: (isOpen) => set({ isInfoSidebarOpen: isOpen }),
+  toggleInfoSidebarOpen: () => set((state) => ({ isInfoSidebarOpen: !state.isInfoSidebarOpen })),
 }));
