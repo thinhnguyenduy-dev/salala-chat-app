@@ -21,6 +21,7 @@ import { IUser } from '@repo/shared';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { useTranslation } from 'react-i18next';
 import { MessageList } from './MessageList';
+import { ArrowLeft } from 'lucide-react';
 
 export function ChatArea() {
   const { t } = useTranslation();
@@ -29,6 +30,7 @@ export function ChatArea() {
   const markOneAsRead = useChatStore((state) => state.markOneAsRead); // Direct selector for stability
   const toggleInfoSidebarOpen = useChatStore((state) => state.toggleInfoSidebarOpen);
   const isInfoSidebarOpen = useChatStore((state) => state.isInfoSidebarOpen);
+  const setMobileView = useChatStore((state) => state.setMobileView);
   const realtimeMessages = activeConversationId ? messagesMap[activeConversationId] || [] : [];
   
   const { user } = useAuthStore();
@@ -409,13 +411,25 @@ export function ChatArea() {
     <div className="flex-1 flex flex-col min-w-0 bg-background h-screen">
       {/* Header */}
       <div className="h-14 border-b flex items-center px-4 justify-between bg-card/50 backdrop-blur">
-        <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity" onClick={handleHeaderProfileClick}>
-           <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
-                  {conversationName.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-            </Avatar>
-            <span className="font-bold">{conversationName}</span>
+        <div className="flex items-center gap-3">
+          {/* Mobile Back Button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden"
+            onClick={() => setMobileView('chats')}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          
+          <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity" onClick={handleHeaderProfileClick}>
+             <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                    {conversationName.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+              </Avatar>
+              <span className="font-bold">{conversationName}</span>
+          </div>
         </div>
         
         <Button variant="ghost" size="icon" onClick={() => toggleInfoSidebarOpen()} title="Thông tin hội thoại">

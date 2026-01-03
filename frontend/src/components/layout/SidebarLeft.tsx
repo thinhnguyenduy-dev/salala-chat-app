@@ -33,7 +33,9 @@ export function SidebarLeft() {
     setActiveConversationId, 
     activeConversationId, 
     conversations, 
-    setConversations 
+    setConversations,
+    setMobileView,
+    mobileView
   } = useChatStore();
   
   const [friends, setFriends] = useState<IUser[]>([]);
@@ -135,7 +137,7 @@ export function SidebarLeft() {
   const directChats = conversations.filter(c => !c.isGroup);
 
   return (
-    <div className="w-80 border-r bg-background flex flex-col hidden md:flex h-full">
+    <div className="w-full h-full border-r bg-background flex flex-col">
       {/* Header with Search */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-4">
@@ -171,10 +173,51 @@ export function SidebarLeft() {
 
       {/* Content */}
       <ScrollArea className="flex-1">
-        <div className="p-2 space-y-4">
+        {/* Mobile Profile View */}
+        {mobileView === 'profile' ? (
+          <div className="p-4 space-y-4">
+            <div className="flex flex-col items-center gap-4 py-8">
+              <Avatar className="h-24 w-24 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => user && setSelectedProfileUser(user as any)}>
+                <AvatarImage src={user?.avatar || ''} />
+                <AvatarFallback className="text-2xl">{(user?.displayName || user?.username)?.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="text-center">
+                <p className="text-xl font-bold">{user?.displayName || user?.username}</p>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-2">
+              <Button variant="outline" className="w-full justify-start" onClick={() => setShowSettings(true)}>
+                <Settings className="h-4 w-4 mr-2" />
+                {t('common.settings')}
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start" 
+                onClick={() => i18n.changeLanguage(i18n.language.startsWith('en') ? 'vi' : 'en')}
+              >
+                <span className="font-bold text-xs mr-2">{i18n.language.startsWith('en') ? 'EN' : 'VN'}</span>
+                Switch Language
+              </Button>
+              
+              <Button variant="outline" className="w-full justify-start text-destructive" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                {t('auth.logout') || 'Đăng xuất'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          // Chats and Friends View
+          <div className="p-2 space-y-4">
           
-          {/* Groups Section */}
-          <div className="space-y-1">
+          {/* Groups Section - Show always on desktop, conditionally on mobile */}
+          <div className={`space-y-1 ${
+            (mobileView === 'chats' || mobileView === 'chat') ? 'block' : 'hidden md:block'
+          }`}>
              <div className="px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider flex items-center justify-between">
                 <span>{t('common.groups')}</span>
                 <span className="bg-muted px-2 py-0.5 rounded-full text-[10px]">{groupChats.length}</span>
@@ -182,7 +225,10 @@ export function SidebarLeft() {
              {groupChats.map((conv) => (
               <div
                 key={conv.id}
-                onClick={() => setActiveConversationId(conv.id)}
+                onClick={() => {
+                  setActiveConversationId(conv.id);
+                  setMobileView('chat');
+                }}
                 className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
                   activeConversationId === conv.id
                     ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30'
@@ -218,10 +264,15 @@ export function SidebarLeft() {
             )}
           </div>
 
-          <Separator />
+          {/* Separator - only show on desktop */}
+          <div className="hidden md:block">
+            <Separator />
+          </div>
   
-          {/* Friends Section */}
-          <div className="space-y-1">
+          {/* Friends Section - Show always on desktop, conditionally on mobile */}
+          <div className={`space-y-1 ${
+            (mobileView === 'friends' || mobileView === 'chat') ? 'block' : 'hidden md:block'
+          }`}>
              <div className="px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider flex items-center justify-between">
                 <span>{t('common.friends')}</span>
                 <span className="bg-muted px-2 py-0.5 rounded-full text-[10px]">{friends.length}</span>
@@ -234,7 +285,10 @@ export function SidebarLeft() {
               return (
                 <div
                   key={friend.id}
-                  onClick={() => handleFriendClick(friend.id)}
+                  onClick={() => {
+                    handleFriendClick(friend.id);
+                    setMobileView('chat');
+                  }}
                   className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
                     friendConv && activeConversationId === friendConv.id
                       ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30'
@@ -278,7 +332,8 @@ export function SidebarLeft() {
             )}
           </div>
           
-        </div>
+          </div>
+        )}
       </ScrollArea>
       
       <div className="p-4 border-t mt-auto">

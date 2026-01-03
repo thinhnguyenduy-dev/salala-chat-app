@@ -20,6 +20,10 @@ interface ChatState {
   isInfoSidebarOpen: boolean;
   setInfoSidebarOpen: (isOpen: boolean) => void;
   toggleInfoSidebarOpen: () => void;
+  
+  // Mobile view state
+  mobileView: 'chats' | 'friends' | 'chat' | 'profile';
+  setMobileView: (view: 'chats' | 'friends' | 'chat' | 'profile') => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -28,6 +32,7 @@ export const useChatStore = create<ChatState>((set) => ({
   activeConversationId: null,
   onlineUsers: [],
   isInfoSidebarOpen: false, // Hidden by default
+  mobileView: 'chats', // Default mobile view
 
   setMessages: (conversationId, messages) =>
     set((state) => ({
@@ -90,4 +95,6 @@ export const useChatStore = create<ChatState>((set) => ({
 
   setInfoSidebarOpen: (isOpen) => set({ isInfoSidebarOpen: isOpen }),
   toggleInfoSidebarOpen: () => set((state) => ({ isInfoSidebarOpen: !state.isInfoSidebarOpen })),
+  
+  setMobileView: (view) => set({ mobileView: view }),
 }));
