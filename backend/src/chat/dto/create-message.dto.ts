@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, MaxLength, IsMongoId, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  MaxLength,
+  IsMongoId,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateMessageDto {
   @IsMongoId()

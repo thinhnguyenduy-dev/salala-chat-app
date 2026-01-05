@@ -17,13 +17,15 @@ import { NotificationModule } from './notification/notification.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{
+    ThrottlerModule.forRoot([
+      {
         ttl: 60000,
         limit: 100, // 100 requests per minute
-    }]),
-    PrismaModule, 
-    RedisModule, 
-    ChatModule, 
+      },
+    ]),
+    PrismaModule,
+    RedisModule,
+    ChatModule,
     SocialModule,
     UploadModule,
     AuthModule,
@@ -31,11 +33,11 @@ import { NotificationModule } from './notification/notification.module';
   ],
   controllers: [AppController],
   providers: [
-      AppService,
-      {
-          provide: APP_GUARD,
-          useClass: ThrottlerGuard,
-      }
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

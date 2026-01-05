@@ -12,11 +12,17 @@ export class NotificationService implements OnModuleInit {
   onModuleInit() {
     try {
       const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
-      const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n');
-      const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+      const privateKey = this.configService
+        .get<string>('FIREBASE_PRIVATE_KEY')
+        ?.replace(/\\n/g, '\n');
+      const clientEmail = this.configService.get<string>(
+        'FIREBASE_CLIENT_EMAIL',
+      );
 
       if (!projectId || !privateKey || !clientEmail) {
-        this.logger.warn('Firebase credentials not configured. Push notifications will be disabled.');
+        this.logger.warn(
+          'Firebase credentials not configured. Push notifications will be disabled.',
+        );
         return;
       }
 
@@ -68,17 +74,23 @@ export class NotificationService implements OnModuleInit {
       };
 
       await admin.messaging().send(message);
-      this.logger.log(`Push notification sent successfully to token: ${token.substring(0, 20)}...`);
+      this.logger.log(
+        `Push notification sent successfully to token: ${token.substring(0, 20)}...`,
+      );
       return true;
     } catch (error) {
       this.logger.error(`Failed to send push notification: ${error.message}`);
-      
+
       // If token is invalid, we should remove it from the database
-      if (error.code === 'messaging/invalid-registration-token' || 
-          error.code === 'messaging/registration-token-not-registered') {
-        this.logger.warn(`Invalid token detected: ${token.substring(0, 20)}...`);
+      if (
+        error.code === 'messaging/invalid-registration-token' ||
+        error.code === 'messaging/registration-token-not-registered'
+      ) {
+        this.logger.warn(
+          `Invalid token detected: ${token.substring(0, 20)}...`,
+        );
       }
-      
+
       return false;
     }
   }
@@ -116,7 +128,7 @@ export class NotificationService implements OnModuleInit {
       };
 
       const response = await admin.messaging().sendEachForMulticast(message);
-      
+
       this.logger.log(
         `Multicast notification sent. Success: ${response.successCount}, Failure: ${response.failureCount}`,
       );
@@ -126,7 +138,9 @@ export class NotificationService implements OnModuleInit {
         failureCount: response.failureCount,
       };
     } catch (error) {
-      this.logger.error(`Failed to send multicast notification: ${error.message}`);
+      this.logger.error(
+        `Failed to send multicast notification: ${error.message}`,
+      );
       return { successCount: 0, failureCount: tokens.length };
     }
   }

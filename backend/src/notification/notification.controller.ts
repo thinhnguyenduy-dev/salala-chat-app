@@ -34,7 +34,10 @@ export class NotificationController {
   }
 
   @Delete('unregister/:userId/:token')
-  async unregisterToken(@Param('userId') userId: string, @Param('token') token: string) {
+  async unregisterToken(
+    @Param('userId') userId: string,
+    @Param('token') token: string,
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { fcmTokens: true },
@@ -44,7 +47,7 @@ export class NotificationController {
       throw new Error('User not found');
     }
 
-    const updatedTokens = user.fcmTokens.filter(t => t !== token);
+    const updatedTokens = user.fcmTokens.filter((t) => t !== token);
 
     await this.prisma.user.update({
       where: { id: userId },

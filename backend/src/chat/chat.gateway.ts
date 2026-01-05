@@ -33,15 +33,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const token = client.handshake.query.token as string;
       // NOTE: In a real app we'd verify the token with secret.
       // For now assuming the token payload has userId
-      // const payload = this.jwtService.verify(token); 
+      // const payload = this.jwtService.verify(token);
       // mocking verification for simplicity if secret not set up yet
       if (!token) throw new Error('No token');
-      
+
       const payload = this.jwtService.decode(token) as any;
-      if (!payload || !payload.sub) {   
-          // If decoding fails or no sub, disconnect
-          client.disconnect();
-          return;
+      if (!payload || !payload.sub) {
+        // If decoding fails or no sub, disconnect
+        client.disconnect();
+        return;
       }
       const userId = payload.sub;
 
@@ -51,7 +51,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Broadcast to all clients that this user is online
       this.server.emit('userStatusChanged', { userId, status: 'online' });
-      
+
       console.log(`User ${userId} connected: ${client.id}`);
     } catch (e) {
       console.error(e);
@@ -62,7 +62,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleDisconnect(client: Socket) {
     const userId = client.data.userId;
     if (userId) {
-      const isFullyOffline = await this.redisService.setUserOffline(userId, client.id);
+      const isFullyOffline = await this.redisService.setUserOffline(
+        userId,
+        client.id,
+      );
 
       // Only broadcast if user has no more active connections
       if (isFullyOffline) {
@@ -71,7 +74,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         console.log(`User ${userId} fully disconnected (all sockets closed)`);
       } else {
-        console.log(`User ${userId} socket ${client.id} disconnected (still has other active connections)`);
+        console.log(
+          `User ${userId} socket ${client.id} disconnected (still has other active connections)`,
+        );
       }
     }
   }
@@ -87,7 +92,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
 
     if (!conversation) {
-        throw new WsException('Conversation not found');
+      throw new WsException('Conversation not found');
     }
 
     if (!conversation.participantIds.includes(userId)) {
@@ -106,15 +111,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: CreateMessageDto,
   ) {
     const userId = client.data.userId;
-    
+
     // Validate participation again or rely on room guard
     // Ideally we check if user is in participant list again for security
     const conversation = await this.prismaService.conversation.findUnique({
-      where: { id: payload.conversationId }
+      where: { id: payload.conversationId },
     });
 
     if (!conversation || !conversation.participantIds.includes(userId)) {
-        throw new WsException('Unauthorized to send message to this room');
+      throw new WsException('Unauthorized to send message to this room');
     }
 
     // Save to DB
@@ -129,8 +134,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Update conversation lastMessage
     await this.prismaService.conversation.update({
-        where: { id: payload.conversationId },
-        data: { lastMessageId: message.id }
+      where: { id: payload.conversationId },
+      data: { lastMessageId: message.id },
     });
 
     // Emit to all participants (their personal rooms)
@@ -166,13 +171,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Get room members (users currently in this conversation room)
       const roomSockets = await this.server.in(conversation.id).fetchSockets();
-      const usersInRoom = new Set(roomSockets.map(socket => socket.data.userId));
+      const usersInRoom = new Set(
+        roomSockets.map((socket) => socket.data.userId),
+      );
 
       // Find users who should receive push notifications
       // (not in room or offline)
       for (const recipientId of recipientIds) {
         const isInRoom = usersInRoom.has(recipientId);
-        
+
         if (!isInRoom) {
           // User is not in the room, send push notification
           const recipient = await this.prismaService.user.findUnique({
@@ -180,12 +187,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             select: { fcmTokens: true },
           });
 
-          if (recipient && recipient.fcmTokens && recipient.fcmTokens.length > 0) {
+          if (
+            recipient &&
+            recipient.fcmTokens &&
+            recipient.fcmTokens.length > 0
+          ) {
             const notificationPayload = {
               title: `New message from ${sender?.username || 'Someone'}`,
-              body: messageContent.length > 100 
-                ? messageContent.substring(0, 100) + '...' 
-                : messageContent,
+              body:
+                messageContent.length > 100
+                  ? messageContent.substring(0, 100) + '...'
+                  : messageContent,
               data: {
                 conversationId: conversation.id,
                 senderId: senderId,
@@ -213,7 +225,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { conversationId: string },
   ) {
     const userId = client.data.userId;
-    
+
     // Broadcast to other users in the room (except sender)
     client.to(payload.conversationId).emit('userTyping', {
       userId,
@@ -227,7 +239,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { conversationId: string },
   ) {
     const userId = client.data.userId;
-    
+
     client.to(payload.conversationId).emit('userStopTyping', {
       userId,
       conversationId: payload.conversationId,
@@ -240,7 +252,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { messageIds: string[] },
   ) {
     const userId = client.data.userId;
-    
+
     try {
       // Save read receipts to database
       const readReceipts = await Promise.all(
@@ -261,7 +273,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
               readAt: new Date(),
             },
           });
-        })
+        }),
       );
 
       // Get conversation ID from first message to broadcast to room
@@ -275,19 +287,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           // Update ConversationRead to mark conversation as read up to this point
           // This ensures getConversations unread count is correct
           await this.prismaService.conversationRead.upsert({
-             where: {
-               conversationId_userId: {
-                 conversationId: message.conversationId,
-                 userId: userId
-               }
-             },
-             create: {
-               conversationId: message.conversationId,
-               userId: userId,
-             },
-             update: {
-                updatedAt: new Date(), // Set to now, effectively marking all current msgs as read
-             }
+            where: {
+              conversationId_userId: {
+                conversationId: message.conversationId,
+                userId: userId,
+              },
+            },
+            create: {
+              conversationId: message.conversationId,
+              userId: userId,
+            },
+            update: {
+              updatedAt: new Date(), // Set to now, effectively marking all current msgs as read
+            },
           });
 
           // Broadcast to all participants in the conversation
@@ -307,7 +319,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // Method to notify users when they're added to a new group
-  notifyGroupCreated(participantIds: string[], groupId: string, groupName: string) {
+  notifyGroupCreated(
+    participantIds: string[],
+    groupId: string,
+    groupName: string,
+  ) {
     participantIds.forEach((userId) => {
       // Emit to all sockets of this user
       this.server.emit(`user:${userId}:newGroup`, {
@@ -329,10 +345,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('call:initiate')
   async handleCallInitiate(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { conversationId: string; calleeId: string; hasVideo: boolean },
+    @MessageBody()
+    payload: { conversationId: string; calleeId: string; hasVideo: boolean },
   ) {
     const callerId = client.data.userId;
-    
+
     try {
       // Validate conversation exists and is a 1-1 chat
       const conversation = await this.prismaService.conversation.findUnique({
@@ -347,8 +364,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         throw new WsException('Calls are only supported for 1-1 conversations');
       }
 
-      if (!conversation.participantIds.includes(callerId) || 
-          !conversation.participantIds.includes(payload.calleeId)) {
+      if (
+        !conversation.participantIds.includes(callerId) ||
+        !conversation.participantIds.includes(payload.calleeId)
+      ) {
         throw new WsException('Invalid participants');
       }
 
@@ -367,8 +386,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         hasVideo: payload.hasVideo,
       });
 
-      console.log(`Call initiated: ${callerId} -> ${payload.calleeId} (video: ${payload.hasVideo})`);
-      
+      console.log(
+        `Call initiated: ${callerId} -> ${payload.calleeId} (video: ${payload.hasVideo})`,
+      );
+
       return { success: true };
     } catch (error) {
       console.error('Error initiating call:', error);
@@ -382,7 +403,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { to: string; offer: RTCSessionDescriptionInit },
   ) {
     const from = client.data.userId;
-    
+
     // Forward the WebRTC offer to the recipient
     this.server.to(payload.to).emit('call:offer', {
       from,
@@ -399,7 +420,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { to: string; answer: RTCSessionDescriptionInit },
   ) {
     const from = client.data.userId;
-    
+
     // Forward the WebRTC answer to the caller
     this.server.to(payload.to).emit('call:answer', {
       from,
@@ -416,7 +437,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { to: string; candidate: RTCIceCandidateInit },
   ) {
     const from = client.data.userId;
-    
+
     // Forward ICE candidate to peer
     this.server.to(payload.to).emit('call:ice-candidate', {
       from,
@@ -433,7 +454,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { to: string },
   ) {
     const from = client.data.userId;
-    
+
     // Notify caller that call was rejected
     this.server.to(payload.to).emit('call:rejected', {
       from,
@@ -449,7 +470,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { to: string },
   ) {
     const from = client.data.userId;
-    
+
     // Notify peer that call ended
     this.server.to(payload.to).emit('call:ended', {
       from,
@@ -465,7 +486,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { to: string },
   ) {
     const from = client.data.userId;
-    
+
     // Notify callee that call was cancelled
     this.server.to(payload.to).emit('call:cancelled', {
       from,

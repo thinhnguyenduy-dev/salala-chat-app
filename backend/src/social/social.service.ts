@@ -1,4 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { IUser, IConversation, IFriendRequest } from '@repo/shared';
 import { ChatGateway } from '../chat/chat.gateway';
@@ -9,7 +15,8 @@ export class SocialService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redisService: RedisService,
-    @Inject(forwardRef(() => ChatGateway)) private readonly chatGateway: ChatGateway,
+    @Inject(forwardRef(() => ChatGateway))
+    private readonly chatGateway: ChatGateway,
   ) {}
 
   async sendFriendRequest(senderId: string, receiverId: string) {
@@ -28,7 +35,9 @@ export class SocialService {
     });
 
     if (existingRequest) {
-      throw new BadRequestException('Request already exists or already friends');
+      throw new BadRequestException(
+        'Request already exists or already friends',
+      );
     }
 
     return this.prisma.friendRequest.create({
@@ -46,8 +55,10 @@ export class SocialService {
     });
 
     if (!request) throw new NotFoundException('Request not found');
-    if (request.receiverId !== userId) throw new BadRequestException('Not your request');
-    if (request.status !== 'PENDING') throw new BadRequestException('Request already handled');
+    if (request.receiverId !== userId)
+      throw new BadRequestException('Not your request');
+    if (request.status !== 'PENDING')
+      throw new BadRequestException('Request already handled');
 
     // Update status to REJECTED
     await this.prisma.friendRequest.update({
@@ -64,8 +75,10 @@ export class SocialService {
     });
 
     if (!request) throw new NotFoundException('Request not found');
-    if (request.receiverId !== userId) throw new BadRequestException('Not your request');
-    if (request.status !== 'PENDING') throw new BadRequestException('Request already handled');
+    if (request.receiverId !== userId)
+      throw new BadRequestException('Not your request');
+    if (request.status !== 'PENDING')
+      throw new BadRequestException('Request already handled');
 
     // 1. Update Request
     await this.prisma.friendRequest.update({
@@ -118,24 +131,40 @@ export class SocialService {
           });
         }
         return { ...c, lastMessage };
-      })
+      }),
     );
 
     // Populate participants manually efficiently
-    const allParticipantIds = Array.from(new Set(convers.flatMap(c => c.participantIds)));
+    const allParticipantIds = Array.from(
+      new Set(convers.flatMap((c) => c.participantIds)),
+    );
     const users = await this.prisma.user.findMany({
       where: { id: { in: allParticipantIds } },
-      select: { id: true, username: true, displayName: true, email: true, avatar: true, createdAt: true, friendIds: true },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        email: true,
+        avatar: true,
+        createdAt: true,
+        friendIds: true,
+      },
     });
 
     // Get online status from Redis
-    const onlineStatusMap = await this.redisService.checkUsersOnline(allParticipantIds);
+    const onlineStatusMap =
+      await this.redisService.checkUsersOnline(allParticipantIds);
 
     // Convert to Map for O(1) lookup, adding status from Redis
-    const userMap = new Map(users.map(u => [u.id, {
-      ...u,
-      status: onlineStatusMap.get(u.id) ? 'online' : 'offline'
-    }]));
+    const userMap = new Map(
+      users.map((u) => [
+        u.id,
+        {
+          ...u,
+          status: onlineStatusMap.get(u.id) ? 'online' : 'offline',
+        },
+      ]),
+    );
 
     // Fetch unread counts
     const unreadCounts = await Promise.all(
@@ -149,31 +178,37 @@ export class SocialService {
           },
         });
 
-        const lastReadTime = readRecord?.updatedAt || new Date(0); 
-        
+        const lastReadTime = readRecord?.updatedAt || new Date(0);
+
         const count = await this.prisma.message.count({
           where: {
             conversationId: c.id,
             createdAt: { gt: lastReadTime },
-            senderId: { not: userId }, 
+            senderId: { not: userId },
           },
         });
-        
+
         return { id: c.id, count };
-      })
+      }),
     );
 
-    const unreadMap = new Map(unreadCounts.map(u => [u.id, u.count]));
+    const unreadMap = new Map(unreadCounts.map((u) => [u.id, u.count]));
 
     // Attach participants
-    return conversWithLastMessage.map(c => ({
+    return conversWithLastMessage.map((c) => ({
       ...c,
-      participants: c.participantIds.map(pid => userMap.get(pid)).filter(Boolean),
+      participants: c.participantIds
+        .map((pid) => userMap.get(pid))
+        .filter(Boolean),
       unreadCount: unreadMap.get(c.id) || 0,
     }));
   }
 
-  async getMessages(conversationId: string, cursor?: string, limit: number = 20) {
+  async getMessages(
+    conversationId: string,
+    cursor?: string,
+    limit: number = 20,
+  ) {
     const messages = await this.prisma.message.findMany({
       where: { conversationId },
       take: limit,
@@ -185,14 +220,15 @@ export class SocialService {
           select: { id: true, username: true, email: true },
         },
         reads: {
-            select: { userId: true, readAt: true }
-        }
+          select: { userId: true, readAt: true },
+        },
       },
     });
 
     // We return messages in DESC order (newest first) for pagination convenience.
     // The frontend might want to reverse them to show oldest->newest.
-    const nextCursor = messages.length === limit ? messages[messages.length - 1].id : null;
+    const nextCursor =
+      messages.length === limit ? messages[messages.length - 1].id : null;
 
     return {
       data: messages,
@@ -212,27 +248,29 @@ export class SocialService {
     const friends = await this.prisma.user.findMany({
       where: { id: { in: user.friendIds } },
       select: {
-          id: true,
-          username: true,
-          displayName: true,
-          email: true,
-          avatar: true,
-      }
+        id: true,
+        username: true,
+        displayName: true,
+        email: true,
+        avatar: true,
+      },
     });
 
     // Get online status from Redis
-    const onlineStatusMap = await this.redisService.checkUsersOnline(user.friendIds);
+    const onlineStatusMap = await this.redisService.checkUsersOnline(
+      user.friendIds,
+    );
 
     // Add status to each friend
-    return friends.map(friend => ({
+    return friends.map((friend) => ({
       ...friend,
-      status: onlineStatusMap.get(friend.id) ? 'online' : 'offline'
+      status: onlineStatusMap.get(friend.id) ? 'online' : 'offline',
     }));
   }
 
   async searchUsers(query: string, currentUserId?: string) {
     if (!query) return [];
-    
+
     return this.prisma.user.findMany({
       where: {
         OR: [
@@ -242,11 +280,11 @@ export class SocialService {
         AND: currentUserId ? { id: { not: currentUserId } } : undefined,
       },
       select: {
-         id: true,
-         username: true,
-         displayName: true,
-         email: true,
-         avatar: true,
+        id: true,
+        username: true,
+        displayName: true,
+        email: true,
+        avatar: true,
       },
       take: 10,
     });
@@ -304,19 +342,26 @@ export class SocialService {
     return newConversation;
   }
 
-  async updateProfile(userId: string, data: { 
-    phoneNumber?: string; 
-    bio?: string;
-    displayName?: string;
-    dateOfBirth?: Date | string;
-    avatar?: string;
-  }) {
+  async updateProfile(
+    userId: string,
+    data: {
+      phoneNumber?: string;
+      bio?: string;
+      displayName?: string;
+      dateOfBirth?: Date | string;
+      avatar?: string;
+    },
+  ) {
     return this.prisma.user.update({
       where: { id: userId },
       data: {
-        ...(data.phoneNumber !== undefined && { phoneNumber: data.phoneNumber }),
+        ...(data.phoneNumber !== undefined && {
+          phoneNumber: data.phoneNumber,
+        }),
         ...(data.bio !== undefined && { bio: data.bio }),
-        ...(data.displayName !== undefined && { displayName: data.displayName }),
+        ...(data.displayName !== undefined && {
+          displayName: data.displayName,
+        }),
         ...(data.dateOfBirth && { dateOfBirth: new Date(data.dateOfBirth) }),
         ...(data.avatar && { avatar: data.avatar }),
       },
@@ -348,7 +393,7 @@ export class SocialService {
 
     return {
       ...user,
-      status: isOnline ? 'online' : 'offline'
+      status: isOnline ? 'online' : 'offline',
     };
   }
 
@@ -367,7 +412,10 @@ export class SocialService {
     return group;
   }
 
-  async getUnreadCount(conversationId: string, userId: string): Promise<number> {
+  async getUnreadCount(
+    conversationId: string,
+    userId: string,
+  ): Promise<number> {
     // Get the last read message for this user in this conversation
     const readStatus = await this.prisma.conversationRead.findUnique({
       where: {
@@ -379,11 +427,11 @@ export class SocialService {
     });
 
     if (!readStatus || !readStatus.lastReadMessageId) {
-        // If never read, maybe return all? Or 0? 
-        // For simplicity let's return count of all messages if never read, or just 0 to be safe/less annoying initially.
-        // Actually, usually if no read status, everything is unread.
-        // But for new users in new groups, they might not have read status yet.
-        return 0; // consistent with "mark as read" logic creating the record
+      // If never read, maybe return all? Or 0?
+      // For simplicity let's return count of all messages if never read, or just 0 to be safe/less annoying initially.
+      // Actually, usually if no read status, everything is unread.
+      // But for new users in new groups, they might not have read status yet.
+      return 0; // consistent with "mark as read" logic creating the record
     }
 
     // Count messages after the last read message
@@ -391,8 +439,8 @@ export class SocialService {
     // Prisma Mongo IDs are not strictly monotonic by default unless configured.
     // Let's look up the message to get createdAt
     const lastReadMsg = await this.prisma.message.findUnique({
-        where: { id: readStatus.lastReadMessageId },
-        select: { createdAt: true }
+      where: { id: readStatus.lastReadMessageId },
+      select: { createdAt: true },
     });
 
     if (!lastReadMsg) return 0;
@@ -401,7 +449,7 @@ export class SocialService {
       where: {
         conversationId,
         senderId: { not: userId }, // Don't count own messages
-        createdAt: { gt: lastReadMsg.createdAt }
+        createdAt: { gt: lastReadMsg.createdAt },
       },
     });
 
@@ -464,7 +512,7 @@ export class SocialService {
   async markAsRead(userId: string, conversationId: string) {
     // Find the latest message to mark as read point (optional, but good for sync)
     // For now, simple Upsert on updatedAt is enough for our logic
-    
+
     return this.prisma.conversationRead.upsert({
       where: {
         conversationId_userId: {

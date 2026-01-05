@@ -1,11 +1,23 @@
-import { Controller, Post, Body, Get, UseGuards, Request, Param, Query, Optional, Inject, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Request,
+  Param,
+  Query,
+  Optional,
+  Inject,
+  Patch,
+} from '@nestjs/common';
 import { SocialService } from './social.service';
 import { ChatGateway } from '../chat/chat.gateway';
 // Assuming we create an AuthGuard later or extract userId from mock/headers for now if Auth not fully ready?
-// But plan says "JWT Auth" was for Gateway. For HTTP we should probably use Guard too, 
+// But plan says "JWT Auth" was for Gateway. For HTTP we should probably use Guard too,
 // but user didn't explicitly ask for HTTP Auth setup yet aside from Gateway.
-// I'll assume we pass userId in body for simplicity or TODO AuthGuard. 
-// Actually, let's just use a simple mock decorator or assume headers for now to keep momentum, 
+// I'll assume we pass userId in body for simplicity or TODO AuthGuard.
+// Actually, let's just use a simple mock decorator or assume headers for now to keep momentum,
 // OR better: Just assume req.user exists if we had a global guard.
 // For this task, I will accept userId in body to enable testing easily without full Auth setup.
 
@@ -17,8 +29,13 @@ export class SocialController {
   ) {}
 
   @Post('friend-request')
-  async sendFriendRequest(@Body() body: { senderId: string; receiverId: string }) {
-    const request = await this.socialService.sendFriendRequest(body.senderId, body.receiverId);
+  async sendFriendRequest(
+    @Body() body: { senderId: string; receiverId: string },
+  ) {
+    const request = await this.socialService.sendFriendRequest(
+      body.senderId,
+      body.receiverId,
+    );
 
     // Notify receiver via WebSocket for real-time notification
     if (this.chatGateway) {
@@ -34,12 +51,16 @@ export class SocialController {
   }
 
   @Post('friend-request/accept')
-  async acceptFriendRequest(@Body() body: { requestId: string; userId: string }) {
+  async acceptFriendRequest(
+    @Body() body: { requestId: string; userId: string },
+  ) {
     return this.socialService.acceptFriendRequest(body.requestId, body.userId);
   }
 
   @Post('friend-request/reject')
-  async rejectFriendRequest(@Body() body: { requestId: string; userId: string }) {
+  async rejectFriendRequest(
+    @Body() body: { requestId: string; userId: string },
+  ) {
     return this.socialService.rejectFriendRequest(body.requestId, body.userId);
   }
 
@@ -54,7 +75,11 @@ export class SocialController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.socialService.getMessages(conversationId, cursor, limit ? parseInt(limit) : 20);
+    return this.socialService.getMessages(
+      conversationId,
+      cursor,
+      limit ? parseInt(limit) : 20,
+    );
   }
 
   @Get('friends/:userId')
@@ -63,16 +88,26 @@ export class SocialController {
   }
 
   @Get('search')
-  async searchUsers(@Query('q') query: string, @Query('userId') userId?: string) {
+  async searchUsers(
+    @Query('q') query: string,
+    @Query('userId') userId?: string,
+  ) {
     return this.socialService.searchUsers(query, userId);
   }
 
   @Post('conversation/mark-read')
-  async markConversationAsRead(@Body() body: { conversationId: string; userId: string; lastMessageId: string }) {
+  async markConversationAsRead(
+    @Body()
+    body: {
+      conversationId: string;
+      userId: string;
+      lastMessageId: string;
+    },
+  ) {
     return this.socialService.markConversationAsRead(
       body.conversationId,
       body.userId,
-      body.lastMessageId
+      body.lastMessageId,
     );
   }
 
@@ -87,60 +122,79 @@ export class SocialController {
   }
 
   @Post('group')
-  async createGroup(@Body() body: { name: string; creatorId: string; participantIds: string[] }) {
-    const group = await this.socialService.createGroup(body.name, body.creatorId, body.participantIds);
-    
+  async createGroup(
+    @Body() body: { name: string; creatorId: string; participantIds: string[] },
+  ) {
+    const group = await this.socialService.createGroup(
+      body.name,
+      body.creatorId,
+      body.participantIds,
+    );
+
     // Notify all participants via WebSocket
     if (this.chatGateway) {
       this.chatGateway.notifyGroupCreated(
         [body.creatorId, ...body.participantIds],
         group.id,
-        body.name
+        body.name,
       );
     }
-    
+
     return group;
   }
 
   @Post('conversation/with')
-  async getOrCreateConversation(@Body() body: { userId: string; friendId: string }) {
-    return this.socialService.getOrCreateConversation(body.userId, body.friendId);
+  async getOrCreateConversation(
+    @Body() body: { userId: string; friendId: string },
+  ) {
+    return this.socialService.getOrCreateConversation(
+      body.userId,
+      body.friendId,
+    );
   }
 
   @Post('profile')
-  async updateProfile(@Body() body: { 
-    userId: string; 
-    phoneNumber?: string; 
-    bio?: string;
-    displayName?: string;
-    dateOfBirth?: string;
-    avatar?: string;
-  }) {
+  async updateProfile(
+    @Body()
+    body: {
+      userId: string;
+      phoneNumber?: string;
+      bio?: string;
+      displayName?: string;
+      dateOfBirth?: string;
+      avatar?: string;
+    },
+  ) {
     return this.socialService.updateProfile(body.userId, {
-        phoneNumber: body.phoneNumber,
-        bio: body.bio,
-        displayName: body.displayName,
-        dateOfBirth: body.dateOfBirth,
-        avatar: body.avatar
+      phoneNumber: body.phoneNumber,
+      bio: body.bio,
+      displayName: body.displayName,
+      dateOfBirth: body.dateOfBirth,
+      avatar: body.avatar,
     });
   }
 
   @Patch('conversation/:conversationId')
   async updateConversation(
     @Param('conversationId') conversationId: string,
-    @Body() body: { name: string }
+    @Body() body: { name: string },
   ) {
-    const updated = await this.socialService.updateConversation(conversationId, { name: body.name });
+    const updated = await this.socialService.updateConversation(
+      conversationId,
+      { name: body.name },
+    );
     // Notify via socket
     if (this.chatGateway) {
-         // We don't have a specific event for "ConversationUpdated" yet in Gateway public API, 
-         // but we can add one or use a generic invalidation.
-         // Let's assume we want to broadcast to room.
-         // Wait, ChatGateway needs to expose server or a method.
-         // I'll check ChatGateway first.
-         // For now I'll just return it. Realtime update is better but I can do polling/refresh on frontend for MVP if needed.
-         // But "feature" implies proper logic.
-         this.chatGateway.server.to(conversationId).emit('conversationUpdated', updated);
+      // We don't have a specific event for "ConversationUpdated" yet in Gateway public API,
+      // but we can add one or use a generic invalidation.
+      // Let's assume we want to broadcast to room.
+      // Wait, ChatGateway needs to expose server or a method.
+      // I'll check ChatGateway first.
+      // For now I'll just return it. Realtime update is better but I can do polling/refresh on frontend for MVP if needed.
+      // But "feature" implies proper logic.
+      this.chatGateway.server
+        .to(conversationId)
+        .emit('conversationUpdated', updated);
     }
     return updated;
   }
@@ -153,7 +207,7 @@ export class SocialController {
   @Post('conversation/:conversationId/read')
   async markAsRead(
     @Param('conversationId') conversationId: string,
-    @Body() body: { userId: string }
+    @Body() body: { userId: string },
   ) {
     return this.socialService.markAsRead(body.userId, conversationId);
   }
