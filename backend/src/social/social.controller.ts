@@ -18,12 +18,29 @@ export class SocialController {
 
   @Post('friend-request')
   async sendFriendRequest(@Body() body: { senderId: string; receiverId: string }) {
-    return this.socialService.sendFriendRequest(body.senderId, body.receiverId);
+    const request = await this.socialService.sendFriendRequest(body.senderId, body.receiverId);
+
+    // Notify receiver via WebSocket for real-time notification
+    if (this.chatGateway) {
+      // Get sender info to include in notification
+      const sender = await this.socialService.getUserById(body.senderId);
+      this.chatGateway.notifyFriendRequest(body.receiverId, {
+        ...request,
+        sender,
+      });
+    }
+
+    return request;
   }
 
   @Post('friend-request/accept')
   async acceptFriendRequest(@Body() body: { requestId: string; userId: string }) {
     return this.socialService.acceptFriendRequest(body.requestId, body.userId);
+  }
+
+  @Post('friend-request/reject')
+  async rejectFriendRequest(@Body() body: { requestId: string; userId: string }) {
+    return this.socialService.rejectFriendRequest(body.requestId, body.userId);
   }
 
   @Get('conversations/:userId')

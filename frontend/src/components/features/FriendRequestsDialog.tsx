@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -30,9 +30,12 @@ export function FriendRequestsDialog({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
+  // Track processed request IDs to prevent duplicate notifications
+  const processedRequestsRef = useRef<Set<string>>(new Set());
+
   const fetchRequests = async () => {
     if (!user?.id) return;
-    
+
     setLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -52,15 +55,22 @@ export function FriendRequestsDialog({ children }: { children: React.ReactNode }
     if (user?.id) {
        fetchRequests();
 
-       const handleNewRequest = () => {
-         fetchRequests();
-         toast.info(t('common.new_friend_request') || 'New friend request received');
+       const handleNewRequest = (event: Event) => {
+         const customEvent = event as CustomEvent;
+         const requestData = customEvent.detail;
+
+         // Deduplicate: only process if we haven't seen this request ID
+         if (requestData?.id && !processedRequestsRef.current.has(requestData.id)) {
+           processedRequestsRef.current.add(requestData.id);
+           fetchRequests();
+           toast.info(t('common.new_friend_request'));
+         }
        };
 
        window.addEventListener('newFriendRequest', handleNewRequest);
        return () => window.removeEventListener('newFriendRequest', handleNewRequest);
     }
-  }, [user?.id]);
+  }, [user?.id, t]);
 
   const handleAccept = async (requestId: string) => {
     if (!user) return;
@@ -86,10 +96,20 @@ export function FriendRequestsDialog({ children }: { children: React.ReactNode }
     if (!user) return;
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      // We need a reject endpoint, for now just remove from UI
-      setRequests(prev => prev.filter(r => r.id !== requestId));
+      const res = await fetch(`${apiUrl}/social/friend-request/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, userId: user.id }),
+      });
+
+      if (res.ok) {
+        setRequests(prev => prev.filter(r => r.id !== requestId));
+      } else {
+        toast.error(t('toast.req_rejected_fail') || 'Failed to reject request');
+      }
     } catch (err) {
       console.error(err);
+      toast.error(t('toast.req_rejected_fail') || 'Failed to reject request');
     }
   };
 

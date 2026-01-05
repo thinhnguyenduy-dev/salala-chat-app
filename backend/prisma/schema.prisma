@@ -29,7 +29,6 @@ model User {
 
   messages Message[]
 
-  status    String   @default("offline") // online, offline
   createdAt DateTime @default(now())
 }
 

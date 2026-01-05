@@ -2,11 +2,13 @@ import { Injectable, BadRequestException, NotFoundException, Inject, forwardRef 
 import { PrismaService } from '../prisma/prisma.service';
 import { IUser, IConversation, IFriendRequest } from '@repo/shared';
 import { ChatGateway } from '../chat/chat.gateway';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class SocialService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly redisService: RedisService,
     @Inject(forwardRef(() => ChatGateway)) private readonly chatGateway: ChatGateway,
   ) {}
 
@@ -36,6 +38,24 @@ export class SocialService {
         status: 'PENDING',
       },
     });
+  }
+
+  async rejectFriendRequest(requestId: string, userId: string) {
+    const request = await this.prisma.friendRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) throw new NotFoundException('Request not found');
+    if (request.receiverId !== userId) throw new BadRequestException('Not your request');
+    if (request.status !== 'PENDING') throw new BadRequestException('Request already handled');
+
+    // Update status to REJECTED
+    await this.prisma.friendRequest.update({
+      where: { id: requestId },
+      data: { status: 'REJECTED' },
+    });
+
+    return { success: true };
   }
 
   async acceptFriendRequest(requestId: string, userId: string) {
@@ -105,11 +125,17 @@ export class SocialService {
     const allParticipantIds = Array.from(new Set(convers.flatMap(c => c.participantIds)));
     const users = await this.prisma.user.findMany({
       where: { id: { in: allParticipantIds } },
-      select: { id: true, username: true, displayName: true, email: true, status: true, createdAt: true, friendIds: true }, // Select safe fields
+      select: { id: true, username: true, displayName: true, email: true, avatar: true, createdAt: true, friendIds: true },
     });
-    
-    // Convert to Map for O(1) lookup
-    const userMap = new Map(users.map(u => [u.id, u]));
+
+    // Get online status from Redis
+    const onlineStatusMap = await this.redisService.checkUsersOnline(allParticipantIds);
+
+    // Convert to Map for O(1) lookup, adding status from Redis
+    const userMap = new Map(users.map(u => [u.id, {
+      ...u,
+      status: onlineStatusMap.get(u.id) ? 'online' : 'offline'
+    }]));
 
     // Fetch unread counts
     const unreadCounts = await Promise.all(
@@ -191,11 +217,17 @@ export class SocialService {
           displayName: true,
           email: true,
           avatar: true,
-          status: true,
       }
     });
 
-    return friends;
+    // Get online status from Redis
+    const onlineStatusMap = await this.redisService.checkUsersOnline(user.friendIds);
+
+    // Add status to each friend
+    return friends.map(friend => ({
+      ...friend,
+      status: onlineStatusMap.get(friend.id) ? 'online' : 'offline'
+    }));
   }
 
   async searchUsers(query: string, currentUserId?: string) {
@@ -299,10 +331,11 @@ export class SocialService {
         username: true,
         email: true,
         avatar: true,
-        status: true,
         displayName: true,
         phoneNumber: true,
         dateOfBirth: true,
+        bio: true,
+        createdAt: true,
       },
     });
 
@@ -310,7 +343,13 @@ export class SocialService {
       throw new NotFoundException('User not found');
     }
 
-    return user;
+    // Get online status from Redis
+    const isOnline = await this.redisService.checkUserOnline(userId);
+
+    return {
+      ...user,
+      status: isOnline ? 'online' : 'offline'
+    };
   }
 
   async createGroup(name: string, creatorId: string, participantIds: string[]) {

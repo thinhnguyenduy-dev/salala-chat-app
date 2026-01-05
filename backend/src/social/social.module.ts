@@ -3,9 +3,10 @@ import { SocialService } from './social.service';
 import { SocialController } from './social.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ChatModule } from '../chat/chat.module';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
-  imports: [PrismaModule, ChatModule],
+  imports: [PrismaModule, ChatModule, RedisModule],
   providers: [SocialService],
   controllers: [SocialController],
 })

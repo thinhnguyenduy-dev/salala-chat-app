@@ -31,7 +31,6 @@ async function main() {
         password: hashedPassword,
         displayName: `${firstName} ${lastName}`,
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName}${lastName}`,
-        status: i % 3 === 0 ? 'online' : 'offline', // 1/3 online, 2/3 offline
         friendIds: [],
       },
     });

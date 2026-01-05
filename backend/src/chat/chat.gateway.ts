@@ -48,12 +48,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.data.userId = userId;
       client.join(userId); // Join personal room for notifications
       await this.redisService.setUserOnline(userId, client.id);
-      
-      // Update database status
-      await this.prismaService.user.update({
-        where: { id: userId },
-        data: { status: 'online' },
-      });
 
       // Broadcast to all clients that this user is online
       this.server.emit('userStatusChanged', { userId, status: 'online' });
@@ -69,17 +63,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.data.userId;
     if (userId) {
       const isFullyOffline = await this.redisService.setUserOffline(userId, client.id);
-      
-      // Only update database and broadcast if user has no more active connections
-      if (isFullyOffline) {
-        await this.prismaService.user.update({
-          where: { id: userId },
-          data: { status: 'offline' },
-        });
 
+      // Only broadcast if user has no more active connections
+      if (isFullyOffline) {
         // Broadcast to all clients that this user is offline
         this.server.emit('userStatusChanged', { userId, status: 'offline' });
-        
+
         console.log(`User ${userId} fully disconnected (all sockets closed)`);
       } else {
         console.log(`User ${userId} socket ${client.id} disconnected (still has other active connections)`);

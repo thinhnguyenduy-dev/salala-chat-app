@@ -14,7 +14,7 @@ import { useMessagesInfinite } from '@/hooks/useMessagesInfinite';
 import { useChatStore } from '@/store/useChatStore';
 import { useInView } from 'react-intersection-observer';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { UserProfileDialog } from '@/components/features/UserProfileDialog';
 import { IUser } from '@repo/shared';
 
@@ -580,18 +580,19 @@ export function ChatArea() {
 
       {/* Image Viewer Dialog */}
       <Dialog open={!!viewImage} onOpenChange={(open) => !open && setViewImage(null)}>
-        <DialogContent className="max-w-screen-lg w-full h-[90vh] p-0 bg-transparent border-0 shadow-none flex items-center justify-center">
-             <div className="relative w-full h-full">
-                {viewImage && (
-                    <Image
-                        src={viewImage}
-                        alt="Full screen view"
-                        fill
-                        className="object-contain"
-                        priority
-                    />
-                )}
-             </div>
+        <DialogContent className="max-w-screen-lg w-full h-[90vh] p-0 bg-transparent border-0 shadow-none flex items-center justify-center [&>button]:hidden">
+          <DialogTitle className="sr-only">Image Viewer</DialogTitle>
+          <div className="relative w-full h-full">
+            {viewImage && (
+              <Image
+                src={viewImage}
+                alt="Full screen view"
+                fill
+                className="object-contain"
+                priority
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

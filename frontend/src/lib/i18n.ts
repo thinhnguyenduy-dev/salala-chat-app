@@ -40,7 +40,8 @@ i18n
             remove: "Remove",
             delete: "Delete",
             close: "Close",
-            is_typing: "is typing..."
+            is_typing: "is typing...",
+            new_friend_request: "New friend request received!"
           },
           profile: {
             title: "Profile Settings",
@@ -86,6 +87,7 @@ i18n
              req_sent_fail: "Failed to send request. Maybe already sent?",
              req_accepted_success: "Friend request accepted",
              req_accepted_fail: "Failed to accept request",
+             req_rejected_fail: "Failed to reject request",
              group_created_success: "Group created successfully",
              group_create_fail: "Failed to create group",
              group_validation: "Please enter group name and select at least 2 friends"
@@ -122,7 +124,8 @@ i18n
             remove: "Xóa",
             delete: "Xóa",
             close: "Đóng",
-            is_typing: "đang soạn tin..."
+            is_typing: "đang soạn tin...",
+            new_friend_request: "Bạn có lời mời kết bạn mới!"
           },
           profile: {
             title: "Cài đặt Profile",
@@ -168,6 +171,7 @@ i18n
              req_sent_fail: "Gửi thất bại. Có thể đã gửi rồi?",
              req_accepted_success: "Đã chấp nhận lời mời",
              req_accepted_fail: "Chấp nhận thất bại",
+             req_rejected_fail: "Từ chối thất bại",
              group_created_success: "Tạo nhóm thành công",
              group_create_fail: "Không thể tạo nhóm",
              group_validation: "Vui lòng nhập tên nhóm và chọn ít nhất 2 bạn bè"

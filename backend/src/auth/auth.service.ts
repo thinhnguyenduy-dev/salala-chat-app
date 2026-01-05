@@ -42,7 +42,7 @@ export class AuthService {
         email: user.email,
         avatar: user.avatar ?? undefined,
         friendIds: user.friendIds,
-        status: user.status,
+        status: 'offline', // Status is managed by Redis, will be 'online' after socket connects
         createdAt: user.createdAt,
       },
     };
@@ -72,7 +72,7 @@ export class AuthService {
         email: user.email,
         avatar: user.avatar ?? undefined,
         friendIds: user.friendIds,
-        status: user.status,
+        status: 'offline', // Status is managed by Redis, will be 'online' after socket connects
         createdAt: user.createdAt,
       },
     };
