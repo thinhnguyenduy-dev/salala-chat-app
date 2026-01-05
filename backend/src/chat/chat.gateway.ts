@@ -332,4 +332,157 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   notifyFriendRequest(receiverId: string, request: any) {
     this.server.to(receiverId).emit('newFriendRequest', request);
   }
+
+  // ============================================
+  // WebRTC Signaling Events for 1-1 Calls
+  // ============================================
+
+  @SubscribeMessage('call:initiate')
+  async handleCallInitiate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { conversationId: string; calleeId: string; hasVideo: boolean },
+  ) {
+    const callerId = client.data.userId;
+    
+    try {
+      // Validate conversation exists and is a 1-1 chat
+      const conversation = await this.prismaService.conversation.findUnique({
+        where: { id: payload.conversationId },
+      });
+
+      if (!conversation) {
+        throw new WsException('Conversation not found');
+      }
+
+      if (conversation.participantIds.length !== 2) {
+        throw new WsException('Calls are only supported for 1-1 conversations');
+      }
+
+      if (!conversation.participantIds.includes(callerId) || 
+          !conversation.participantIds.includes(payload.calleeId)) {
+        throw new WsException('Invalid participants');
+      }
+
+      // Get caller info for notification
+      const caller = await this.prismaService.user.findUnique({
+        where: { id: callerId },
+        select: { username: true, avatar: true },
+      });
+
+      // Notify the callee about incoming call
+      this.server.to(payload.calleeId).emit('call:incoming', {
+        callerId,
+        callerName: caller?.username || 'Unknown',
+        callerAvatar: caller?.avatar,
+        conversationId: payload.conversationId,
+        hasVideo: payload.hasVideo,
+      });
+
+      console.log(`Call initiated: ${callerId} -> ${payload.calleeId} (video: ${payload.hasVideo})`);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error initiating call:', error);
+      throw new WsException('Failed to initiate call');
+    }
+  }
+
+  @SubscribeMessage('call:offer')
+  async handleCallOffer(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { to: string; offer: RTCSessionDescriptionInit },
+  ) {
+    const from = client.data.userId;
+    
+    // Forward the WebRTC offer to the recipient
+    this.server.to(payload.to).emit('call:offer', {
+      from,
+      offer: payload.offer,
+    });
+
+    console.log(`Call offer forwarded: ${from} -> ${payload.to}`);
+    return { success: true };
+  }
+
+  @SubscribeMessage('call:answer')
+  async handleCallAnswer(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { to: string; answer: RTCSessionDescriptionInit },
+  ) {
+    const from = client.data.userId;
+    
+    // Forward the WebRTC answer to the caller
+    this.server.to(payload.to).emit('call:answer', {
+      from,
+      answer: payload.answer,
+    });
+
+    console.log(`Call answer forwarded: ${from} -> ${payload.to}`);
+    return { success: true };
+  }
+
+  @SubscribeMessage('call:ice-candidate')
+  async handleIceCandidate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { to: string; candidate: RTCIceCandidateInit },
+  ) {
+    const from = client.data.userId;
+    
+    // Forward ICE candidate to peer
+    this.server.to(payload.to).emit('call:ice-candidate', {
+      from,
+      candidate: payload.candidate,
+    });
+
+    console.log(`ICE candidate forwarded: ${from} -> ${payload.to}`);
+    return { success: true };
+  }
+
+  @SubscribeMessage('call:reject')
+  async handleCallReject(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { to: string },
+  ) {
+    const from = client.data.userId;
+    
+    // Notify caller that call was rejected
+    this.server.to(payload.to).emit('call:rejected', {
+      from,
+    });
+
+    console.log(`Call rejected: ${from} rejected call from ${payload.to}`);
+    return { success: true };
+  }
+
+  @SubscribeMessage('call:end')
+  async handleCallEnd(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { to: string },
+  ) {
+    const from = client.data.userId;
+    
+    // Notify peer that call ended
+    this.server.to(payload.to).emit('call:ended', {
+      from,
+    });
+
+    console.log(`Call ended: ${from} ended call with ${payload.to}`);
+    return { success: true };
+  }
+
+  @SubscribeMessage('call:cancel')
+  async handleCallCancel(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { to: string },
+  ) {
+    const from = client.data.userId;
+    
+    // Notify callee that call was cancelled
+    this.server.to(payload.to).emit('call:cancelled', {
+      from,
+    });
+
+    console.log(`Call cancelled: ${from} cancelled call to ${payload.to}`);
+    return { success: true };
+  }
 }

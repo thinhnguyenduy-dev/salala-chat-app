@@ -6,6 +6,7 @@ import { IMessage } from '@repo/shared';
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 import { useAuthStore } from '@/store/useAuthStore';
+import { useCallStore } from '@/store/useCallStore';
 
 export const useSocket = (tokenProp?: string | null) => {
   const socketRef = useRef<Socket | null>(null);
@@ -71,6 +72,51 @@ export const useSocket = (tokenProp?: string | null) => {
       });
     }
 
+    // ============================================
+    // WebRTC Call Event Listeners
+    // ============================================
+
+    socketRef.current.on('call:incoming', (data: {
+      callerId: string;
+      callerName: string;
+      callerAvatar: string | null;
+      conversationId: string;
+      hasVideo: boolean;
+    }) => {
+      console.log('[Socket] Incoming call:', data);
+      window.dispatchEvent(new CustomEvent('call:incoming', { detail: data }));
+    });
+
+    socketRef.current.on('call:offer', (data: { from: string; offer: RTCSessionDescriptionInit }) => {
+      console.log('[Socket] Received call offer');
+      window.dispatchEvent(new CustomEvent('call:offer', { detail: data }));
+    });
+
+    socketRef.current.on('call:answer', (data: { from: string; answer: RTCSessionDescriptionInit }) => {
+      console.log('[Socket] Received call answer');
+      window.dispatchEvent(new CustomEvent('call:answer', { detail: data }));
+    });
+
+    socketRef.current.on('call:ice-candidate', (data: { from: string; candidate: RTCIceCandidateInit }) => {
+      console.log('[Socket] Received ICE candidate');
+      window.dispatchEvent(new CustomEvent('call:ice-candidate', { detail: data }));
+    });
+
+    socketRef.current.on('call:rejected', (data: { from: string }) => {
+      console.log('[Socket] Call rejected');
+      window.dispatchEvent(new CustomEvent('call:rejected', { detail: data }));
+    });
+
+    socketRef.current.on('call:ended', (data: { from: string }) => {
+      console.log('[Socket] Call ended by peer');
+      window.dispatchEvent(new CustomEvent('call:ended', { detail: data }));
+    });
+
+    socketRef.current.on('call:cancelled', (data: { from: string }) => {
+      console.log('[Socket] Call cancelled');
+      window.dispatchEvent(new CustomEvent('call:cancelled', { detail: data }));
+    });
+
     return () => {
       socketRef.current?.disconnect();
     };
@@ -96,5 +142,52 @@ export const useSocket = (tokenProp?: string | null) => {
     socketRef.current?.emit('markMessagesAsRead', { messageIds });
   }, []);
 
-  return { socket: socketRef.current, joinRoom, sendMessage, emitTyping, emitStopTyping, emitMarkAsRead };
+  // ============================================
+  // WebRTC Call Emit Functions
+  // ============================================
+
+  const initiateCall = useCallback((conversationId: string, calleeId: string, hasVideo: boolean) => {
+    socketRef.current?.emit('call:initiate', { conversationId, calleeId, hasVideo });
+  }, []);
+
+  const sendOffer = useCallback((to: string, offer: RTCSessionDescriptionInit) => {
+    socketRef.current?.emit('call:offer', { to, offer });
+  }, []);
+
+  const sendAnswer = useCallback((to: string, answer: RTCSessionDescriptionInit) => {
+    socketRef.current?.emit('call:answer', { to, answer });
+  }, []);
+
+  const sendIceCandidate = useCallback((to: string, candidate: RTCIceCandidateInit) => {
+    socketRef.current?.emit('call:ice-candidate', { to, candidate });
+  }, []);
+
+  const rejectCall = useCallback((to: string) => {
+    socketRef.current?.emit('call:reject', { to });
+  }, []);
+
+  const endCall = useCallback((to: string) => {
+    socketRef.current?.emit('call:end', { to });
+  }, []);
+
+  const cancelCall = useCallback((to: string) => {
+    socketRef.current?.emit('call:cancel', { to });
+  }, []);
+
+  return {
+    socket: socketRef.current,
+    joinRoom,
+    sendMessage,
+    emitTyping,
+    emitStopTyping,
+    emitMarkAsRead,
+    // Call functions
+    initiateCall,
+    sendOffer,
+    sendAnswer,
+    sendIceCandidate,
+    rejectCall,
+    endCall,
+    cancelCall,
+  };
 };

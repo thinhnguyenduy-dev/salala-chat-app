@@ -89,6 +89,9 @@ i18n
              group_created_success: "Group created successfully",
              group_create_fail: "Failed to create group",
              group_validation: "Please enter group name and select at least 2 friends"
+          },
+          auth: {
+            logout: "Logout"
           }
         }
       },
@@ -168,6 +171,9 @@ i18n
              group_created_success: "Tạo nhóm thành công",
              group_create_fail: "Không thể tạo nhóm",
              group_validation: "Vui lòng nhập tên nhóm và chọn ít nhất 2 bạn bè"
+          },
+          auth: {
+            logout: "Đăng xuất"
           }
         }
       }

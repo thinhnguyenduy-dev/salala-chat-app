@@ -22,6 +22,7 @@ import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { useTranslation } from 'react-i18next';
 import { MessageList } from './MessageList';
 import { ArrowLeft } from 'lucide-react';
+import { CallButton } from '@/components/features/CallButton';
 
 export function ChatArea() {
   const { t } = useTranslation();
@@ -317,6 +318,7 @@ export function ChatArea() {
   // Fetch conversation details for header
   const [conversationName, setConversationName] = useState<string>('Chat');
   const [participants, setParticipants] = useState<Map<string, any>>(new Map());
+  const [otherUser, setOtherUser] = useState<IUser | null>(null);
 
   useEffect(() => {
     if (!activeConversationId) return;
@@ -329,6 +331,8 @@ export function ChatArea() {
         
         const currentConv = conversations.find((c: any) => c.id === activeConversationId);
         
+        setOtherUser(null); // Reset
+        
         if (currentConv) {
           if (currentConv.isGroup) {
             setConversationName(currentConv.name || 'Nhóm chat');
@@ -339,6 +343,7 @@ export function ChatArea() {
               const userRes = await fetch(`${apiUrl}/social/user/${otherUserId}`);
               const userData = await userRes.json();
               setConversationName(userData.displayName || userData.username);
+              setOtherUser(userData);
             }
           }
 
@@ -432,9 +437,20 @@ export function ChatArea() {
           </div>
         </div>
         
-        <Button variant="ghost" size="icon" onClick={() => toggleInfoSidebarOpen()} title="Thông tin hội thoại">
-            <Info className={`h-5 w-5 ${isInfoSidebarOpen ? 'text-primary' : 'text-muted-foreground'}`} />
-        </Button>
+        <div className="flex items-center gap-1">
+          {otherUser && activeConversationId && (
+            <CallButton 
+              conversationId={activeConversationId}
+              otherUserId={otherUser.id}
+              otherUserName={otherUser.displayName || otherUser.username}
+              otherUserAvatar={otherUser.avatar || null}
+            />
+          )}
+
+          <Button variant="ghost" size="icon" onClick={() => toggleInfoSidebarOpen()} title="Thông tin hội thoại">
+              <Info className={`h-5 w-5 ${isInfoSidebarOpen ? 'text-primary' : 'text-muted-foreground'}`} />
+          </Button>
+        </div>
       </div>
 
       {/* Messages */}

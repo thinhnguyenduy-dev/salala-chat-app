@@ -5,6 +5,7 @@ import { SidebarRight } from './SidebarRight';
 import { ChatArea } from './ChatArea';
 import { MobileNav } from './MobileNav';
 import { useChatStore } from '@/store/useChatStore';
+import { CallManager } from '@/components/features/CallManager';
 
 export function MainLayout() {
   const { isInfoSidebarOpen, mobileView, activeConversationId } = useChatStore();
@@ -43,6 +44,7 @@ export function MainLayout() {
       
       {/* Mobile Bottom Navigation */}
       <MobileNav />
+      <CallManager />
     </>
   );
 }

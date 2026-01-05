@@ -12,8 +12,8 @@ interface MessageListProps {
   isFetchingNextPage: boolean;
   onProfileClick: (user: IUser) => void;
   onImageClick: (url: string) => void;
-  topRef: React.RefObject<HTMLDivElement>;
-  lastMessageRef: React.RefObject<HTMLDivElement>;
+  topRef: React.Ref<HTMLDivElement>;
+  lastMessageRef: React.Ref<HTMLDivElement>;
 }
 
 export const MessageList = memo(function MessageList({
@@ -80,7 +80,7 @@ export const MessageList = memo(function MessageList({
                           : 'bg-muted'
                       }`}>
                            <p className={`${
-                               /^[\p{Emoji}\u200d\s]+$/u.test(msg.content) && msg.content.length < 10 
+                               /^[\p{Emoji}\u200d\s]+$/u.test(msg.content || '') && (msg.content || '').length < 10 
                                  ? 'text-4xl leading-relaxed' 
                                  : 'text-sm'
                            }`}>{msg.content}</p>
