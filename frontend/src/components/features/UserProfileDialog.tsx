@@ -105,21 +105,24 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
             )}
 
             {/* Member Since */}
-            <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50">
-              <div className="p-2 bg-background rounded-full">
-                 <Calendar className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('profile.joined')}</p>
-                <p className="font-medium">
-                    {new Date(user.createdAt).toLocaleDateString(i18n.language.startsWith('vi') ? 'vi-VN' : 'en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    })}
-                </p>
-              </div>
-            </div>
+            {/* Member Since */}
+            {user.createdAt && (
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50">
+                <div className="p-2 bg-background rounded-full">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('profile.joined')}</p>
+                    <p className="font-medium">
+                        {new Date(user.createdAt).toLocaleDateString(i18n.language.startsWith('vi') ? 'vi-VN' : 'en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        })}
+                    </p>
+                </div>
+                </div>
+            )}
             
              {/* ID (Optional debug info) */}
             <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50">

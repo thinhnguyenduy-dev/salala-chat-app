@@ -253,6 +253,7 @@ export class SocialService {
         displayName: true,
         email: true,
         avatar: true,
+        createdAt: true,
       },
     });
 
@@ -285,6 +286,7 @@ export class SocialService {
         displayName: true,
         email: true,
         avatar: true,
+        createdAt: true,
       },
       take: 10,
     });
@@ -304,6 +306,7 @@ export class SocialService {
             displayName: true,
             email: true,
             avatar: true,
+            createdAt: true,
           },
         },
       },

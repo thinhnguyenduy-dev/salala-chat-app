@@ -32,6 +32,7 @@ export const useWebRTC = ({ socket, userId, onCallEnd }: UseWebRTCProps) => {
   // Internal queue for ICE candidates received before remote description
   const remoteCandidatesQueue = useRef<RTCIceCandidateInit[]>([]);
   const isAnsweringRef = useRef(false); // Prevent duplicate answerCall
+  const isProcessingRemoteAnswerRef = useRef(false); // Prevent duplicate handleAnswer
 
   // Refs for cleanup (to avoid state dependencies changes triggering cleanup)
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -263,6 +264,12 @@ export const useWebRTC = ({ socket, userId, onCallEnd }: UseWebRTCProps) => {
       return;
     }
 
+    // Check lock to prevent race conditions
+    if (isProcessingRemoteAnswerRef.current) {
+        console.warn('[WebRTC] Already processing an answer, ignoring duplicate');
+        return;
+    }
+
     // Prevent "stable" state error (Duplicate answer or stale)
     if (peerConnectionRef.current.signalingState === 'stable') {
         console.warn('[WebRTC] Received answer but already in stable state, ignoring');
@@ -270,11 +277,14 @@ export const useWebRTC = ({ socket, userId, onCallEnd }: UseWebRTCProps) => {
     }
 
     try {
+      isProcessingRemoteAnswerRef.current = true;
       await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
       await processQueuedCandidates();
     } catch (error) {
       console.error('[WebRTC] Error setting remote answer:', error);
       toast.error('Connection error');
+    } finally {
+      isProcessingRemoteAnswerRef.current = false;
     }
   }, [processQueuedCandidates]);
 
