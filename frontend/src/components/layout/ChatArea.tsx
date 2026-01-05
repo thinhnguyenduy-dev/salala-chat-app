@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Paperclip, Smile, Info } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { uploadFile } from '@/lib/upload';
+import { uploadFile, uploadAudio } from '@/lib/upload';
+import { VoiceRecorder } from '@/components/ui/VoiceRecorder';
 import Image from 'next/image';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -45,6 +46,7 @@ export function ChatArea() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   
   // Typing indicator state
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
@@ -120,7 +122,22 @@ export function ChatArea() {
     }
   };
 
+  const handleVoiceSend = async (audioBlob: Blob) => {
+    if (!activeConversationId) return;
 
+    setIsUploading(true);
+    try {
+      const fileUrl = await uploadAudio(audioBlob);
+      if (socketSendMessage) {
+        socketSendMessage(activeConversationId, '', fileUrl);
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to upload voice message');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const { 
     data, 
@@ -541,41 +558,60 @@ export function ChatArea() {
                 }
             }} 
         />
-        <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-xl">
-             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-background" onClick={() => fileInputRef.current?.click()}>
-                <Paperclip className="h-5 w-5" />
+        {isVoiceRecording ? (
+          <div className="bg-muted/50 p-2 rounded-xl">
+            <VoiceRecorder
+              onSend={handleVoiceSend}
+              onRecordingStateChange={setIsVoiceRecording}
+              disabled={isUploading}
+            />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-xl">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-background" onClick={() => fileInputRef.current?.click()}>
+              <Paperclip className="h-5 w-5" />
             </Button>
-            <Input 
-                className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground" 
-                placeholder={isUploading ? t('common.uploading') : t('common.type_message')}
-                value={inputText}
-                onChange={(e) => handleInputChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isUploading}
+            <Input
+              className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground"
+              placeholder={isUploading ? t('common.uploading') : t('common.type_message')}
+              value={inputText}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isUploading}
             />
             <div className="relative">
-                {showEmojiPicker && (
-                    <div className="absolute bottom-12 right-0 z-10 shadow-xl rounded-xl">
-                        <EmojiPicker 
-                            onEmojiClick={(emojiData) => setInputText((prev) => prev + emojiData.emoji)}
-                            width={300}
-                            height={400}
-                        />
-                    </div>
-                )}
-                <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={`h-9 w-9 rounded-full text-muted-foreground hover:bg-background ${showEmojiPicker ? 'text-primary bg-background' : ''}`}
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                >
-                    <Smile className="h-5 w-5" />
-                </Button>
+              {showEmojiPicker && (
+                <div className="absolute bottom-12 right-0 z-10 shadow-xl rounded-xl">
+                  <EmojiPicker
+                    onEmojiClick={(emojiData) => setInputText((prev) => prev + emojiData.emoji)}
+                    width={300}
+                    height={400}
+                  />
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-9 w-9 rounded-full text-muted-foreground hover:bg-background ${showEmojiPicker ? 'text-primary bg-background' : ''}`}
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              >
+                <Smile className="h-5 w-5" />
+              </Button>
             </div>
-            <Button size="icon" className="h-9 w-9 rounded-full" onClick={handleSendMessage} disabled={isUploading || (!inputText.trim() && !selectedFile)}>
+            {/* Show mic button when input is empty, send button otherwise */}
+            {!inputText.trim() && !selectedFile ? (
+              <VoiceRecorder
+                onSend={handleVoiceSend}
+                onRecordingStateChange={setIsVoiceRecording}
+                disabled={isUploading}
+              />
+            ) : (
+              <Button size="icon" className="h-9 w-9 rounded-full" onClick={handleSendMessage} disabled={isUploading}>
                 <Send className="h-4 w-4" />
-            </Button>
-        </div>
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Image Viewer Dialog */}

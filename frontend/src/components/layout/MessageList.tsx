@@ -1,8 +1,14 @@
-
 import React, { memo } from 'react';
 import { IMessage, IUser } from '@repo/shared';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AudioPlayer } from '@/components/ui/AudioPlayer';
 import Image from 'next/image';
+
+function isAudioUrl(url: string): boolean {
+  const audioExtensions = ['.mp3', '.wav', '.ogg', '.webm', '.m4a', '.aac'];
+  const lowerUrl = url.toLowerCase();
+  return audioExtensions.some((ext) => lowerUrl.includes(ext)) || lowerUrl.includes('/video/upload/');
+}
 
 interface MessageListProps {
   messages: IMessage[];
@@ -85,14 +91,20 @@ export const MessageList = memo(function MessageList({
                                  : 'text-sm'
                            }`}>{msg.content}</p>
                            {msg.fileUrl && (
-                               <div className="mt-2 relative w-48 h-48 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => onImageClick(msg.fileUrl!)}>
-                                   <Image 
-                                      src={msg.fileUrl} 
-                                      alt="Shared image" 
-                                      fill 
-                                      className="object-cover rounded-md"
-                                   />
-                               </div>
+                              isAudioUrl(msg.fileUrl) ? (
+                                <div className="mt-2">
+                                  <AudioPlayer src={msg.fileUrl} isOwnMessage={isOwnMessage} />
+                                </div>
+                              ) : (
+                                <div className="mt-2 relative w-48 h-48 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => onImageClick(msg.fileUrl!)}>
+                                  <Image
+                                    src={msg.fileUrl}
+                                    alt="Shared image"
+                                    fill
+                                    className="object-cover rounded-md"
+                                  />
+                                </div>
+                              )
                            )}
                            <span suppressHydrationWarning className={`text-[10px] block mt-1 text-right ${
                              isOwnMessage ? 'opacity-80' : 'opacity-70'

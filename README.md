@@ -1,3 +1,4 @@
+![Salala Logo](docs/logo.png)
 # Salala - Real-time Chat Application
 
 A full-featured real-time chat application with video/audio calling capabilities, built with modern web technologies.
@@ -45,9 +46,9 @@ A full-featured real-time chat application with video/audio calling capabilities
 |:---:|:---:|:---:|
 | ![Chat](docs/screenshots/chat.png) | ![Video Call](docs/screenshots/video-call.png) | ![Mobile](docs/screenshots/mobile.png) |
 
-| Dark Mode | Group Chat | Profile |
-|:---:|:---:|:---:|
-| ![Dark Mode](docs/screenshots/dark-mode.png) | ![Group](docs/screenshots/group-chat.png) | ![Profile](docs/screenshots/profile.png) |
+| Dark Mode | Group Chat |
+|:---:|:---:|
+| ![Dark Mode](docs/screenshots/dark-mode.png) | ![Group](docs/screenshots/group-chat.png) |
 
 ## Tech Stack
 
