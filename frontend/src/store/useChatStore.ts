@@ -24,6 +24,9 @@ interface ChatState {
   // Mobile view state
   mobileView: 'chats' | 'friends' | 'chat' | 'profile';
   setMobileView: (view: 'chats' | 'friends' | 'chat' | 'profile') => void;
+  
+  addReaction: (conversationId: string, reaction: any) => void;
+  removeReaction: (conversationId: string, messageId: string, userId: string, emoji: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -97,4 +100,48 @@ export const useChatStore = create<ChatState>((set) => ({
   toggleInfoSidebarOpen: () => set((state) => ({ isInfoSidebarOpen: !state.isInfoSidebarOpen })),
   
   setMobileView: (view) => set({ mobileView: view }),
+
+  addReaction: (conversationId, reaction) => set((state) => {
+    const messages = state.messages[conversationId] || [];
+    return {
+      messages: {
+        ...state.messages,
+        [conversationId]: messages.map(msg => {
+          if (msg.id === reaction.messageId) {
+            const existingReactions = msg.reactions || [];
+            // Check for duplicate (same id, or same user+emoji combo)
+            const isDuplicate = existingReactions.some(r =>
+              r.id === reaction.id || (r.userId === reaction.userId && r.emoji === reaction.emoji)
+            );
+            if (isDuplicate) {
+              return msg; // Don't add duplicate
+            }
+            return {
+              ...msg,
+              reactions: [...existingReactions, reaction]
+            };
+          }
+          return msg;
+        })
+      }
+    };
+  }),
+
+  removeReaction: (conversationId, messageId, userId, emoji) => set((state) => {
+    const messages = state.messages[conversationId] || [];
+    return {
+      messages: {
+        ...state.messages,
+        [conversationId]: messages.map(msg => {
+          if (msg.id === messageId) {
+            return {
+              ...msg,
+              reactions: (msg.reactions || []).filter(r => !(r.userId === userId && r.emoji === emoji))
+            };
+          }
+          return msg;
+        })
+      }
+    };
+  }),
 }));

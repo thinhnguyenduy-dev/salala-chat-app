@@ -37,4 +37,15 @@ export interface IMessage {
   content?: string;
   fileUrl?: string;
   createdAt: Date;
+  reactions?: IMessageReaction[];
+  replyTo?: IMessage;
+  replyToId?: string;
+}
+
+export interface IMessageReaction {
+  id: string;
+  messageId: string;
+  userId: string;
+  emoji: string;
+  createdAt: Date;
 }

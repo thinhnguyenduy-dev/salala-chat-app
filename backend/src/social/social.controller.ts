@@ -211,4 +211,20 @@ export class SocialController {
   ) {
     return this.socialService.markAsRead(body.userId, conversationId);
   }
+
+  @Post('messages/:messageId/reaction')
+  async addReaction(
+    @Param('messageId') messageId: string,
+    @Body() body: { userId: string; emoji: string },
+  ) {
+    return this.socialService.addReaction(body.userId, messageId, body.emoji);
+  }
+
+  @Post('messages/:messageId/reaction/remove')
+  async removeReaction(
+    @Param('messageId') messageId: string,
+    @Body() body: { userId: string; emoji: string },
+  ) {
+    return this.socialService.removeReaction(body.userId, messageId, body.emoji);
+  }
 }

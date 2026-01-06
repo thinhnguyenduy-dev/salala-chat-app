@@ -28,6 +28,7 @@ model User {
   receivedFriendRequests  FriendRequest[]  @relation("Receiver")
 
   messages Message[]
+  reactions MessageReaction[]
 
   createdAt DateTime @default(now())
 }
@@ -68,6 +69,11 @@ model Message {
   content        String?
   fileUrl        String?
   createdAt      DateTime @default(now())
+  
+  reactions      MessageReaction[]
+  replyToId      String?   @db.ObjectId
+  replyTo        Message?  @relation("ReplyTo", fields: [replyToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies        Message[] @relation("ReplyTo")
 
   sender       User         @relation(fields: [senderId], references: [id])
   conversation Conversation @relation("ConversationMessages", fields: [conversationId], references: [id])
@@ -76,6 +82,19 @@ model Message {
   @@index([conversationId])
   @@index([senderId])
   @@index([conversationId, createdAt])
+}
+
+model MessageReaction {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  messageId String   @db.ObjectId
+  userId    String   @db.ObjectId
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId, emoji])
 }
 
 model ConversationRead {

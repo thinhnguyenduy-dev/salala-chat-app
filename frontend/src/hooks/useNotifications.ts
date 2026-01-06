@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import { requestNotificationPermission, onMessageListener } from '@/lib/firebase';
 import { useAuthStore } from '@/store/useAuthStore';
 
-export function useNotifications() {
+export function useNotifications(enabled: boolean = true) {
   const { user } = useAuthStore();
   const [token, setToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<any>(null);
 
   useEffect(() => {
     const initNotifications = async () => {
-      if (!user?.id) return;
+      if (!enabled || !user?.id) return;
 
       try {
         // Request permission and get token
@@ -55,7 +55,7 @@ export function useNotifications() {
     return () => {
       // Cleanup if needed
     };
-  }, [user?.id]);
+  }, [user?.id, enabled]);
 
   return { token, notification };
 }

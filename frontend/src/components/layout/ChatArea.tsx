@@ -1,14 +1,13 @@
 "use client";
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Paperclip, Smile, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
+import { IMessage, IUser } from '@repo/shared';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadFile, uploadAudio } from '@/lib/upload';
-import { VoiceRecorder } from '@/components/ui/VoiceRecorder';
 import Image from 'next/image';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useSocket } from '@/hooks/useSocket';
 import { useMessagesInfinite } from '@/hooks/useMessagesInfinite';
@@ -17,11 +16,10 @@ import { useInView } from 'react-intersection-observer';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { UserProfileDialog } from '@/components/features/UserProfileDialog';
-import { IUser } from '@repo/shared';
 
-import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { useTranslation } from 'react-i18next';
 import { MessageList } from './MessageList';
+import { ChatInput } from './ChatInput';
 import { ArrowLeft } from 'lucide-react';
 import { CallButton } from '@/components/features/CallButton';
 
@@ -40,96 +38,80 @@ export function ChatArea() {
   const { ref: topRef, inView } = useInView();
   
   // File Upload State
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [inputText, setInputText] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFileUrl, setSelectedFileUrl] = useState<string | undefined>(undefined);
   const [viewImage, setViewImage] = useState<string | null>(null);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
-  
+  const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
+
   // Typing indicator state
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Read receipts state: Map<messageId, Set<userId>>
   const [messageReadBy, setMessageReadBy] = useState<Map<string, Set<string>>>(new Map());
-  
+
   const { socket, sendMessage: socketSendMessage, joinRoom, emitTyping, emitStopTyping, emitMarkAsRead } = useSocket();
   const conversations = useChatStore((state) => state.conversations);
-  
-  const lastTypingEmittedRef = useRef<number>(0);
 
-  // Handle typing indicator
-  const handleInputChange = (value: string) => {
-    setInputText(value);
-    
-    if (!activeConversationId || !emitTyping || !emitStopTyping) return;
-    
-    // Throttle emit typing: max once every 2 seconds
-    const now = Date.now();
-    if (now - lastTypingEmittedRef.current > 2000) {
-        emitTyping(activeConversationId);
-        lastTypingEmittedRef.current = now;
+  // Memoized callbacks for ChatInput
+  const handleTyping = useCallback(() => {
+    if (activeConversationId && emitTyping) {
+      emitTyping(activeConversationId);
     }
-    
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
-    // Auto stop typing after 2 seconds of inactivity
-    typingTimeoutRef.current = setTimeout(() => {
-      emitStopTyping(activeConversationId);
-    }, 2000);
-  };
+  }, [activeConversationId, emitTyping]);
 
-  const handleSendMessage = async () => {
-    if (!activeConversationId || (!inputText.trim() && !selectedFile)) return;
-    
-    // Stop typing when sending message
-    if (emitStopTyping && typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
+  const handleStopTyping = useCallback(() => {
+    if (activeConversationId && emitStopTyping) {
       emitStopTyping(activeConversationId);
     }
-    
-    let fileUrl = undefined;
-    if (selectedFile) {
-        setIsUploading(true);
-        try {
-            fileUrl = await uploadFile(selectedFile);
-        } catch (e) {
-            console.error(e);
-            toast.error('Upload failed: ' + (e as Error).message);
-            setIsUploading(false);
-            return;
-        }
+  }, [activeConversationId, emitStopTyping]);
+
+  const handleFileSelect = useCallback((file: File) => {
+    setSelectedFile(file);
+    setSelectedFileUrl(URL.createObjectURL(file));
+  }, []);
+
+  const handleClearFile = useCallback(() => {
+    if (selectedFileUrl) {
+      URL.revokeObjectURL(selectedFileUrl);
+    }
+    setSelectedFile(null);
+    setSelectedFileUrl(undefined);
+  }, [selectedFileUrl]);
+
+  const handleSendMessage = useCallback(async (content: string, fileUrlFromInput?: string, replyToId?: string) => {
+    if (!activeConversationId || (!content.trim() && !selectedFile)) return;
+
+    let fileUrl = fileUrlFromInput;
+    if (selectedFile && !fileUrl) {
+      setIsUploading(true);
+      try {
+        fileUrl = await uploadFile(selectedFile);
+      } catch (e) {
+        console.error(e);
+        toast.error('Upload failed: ' + (e as Error).message);
         setIsUploading(false);
+        return;
+      }
+      setIsUploading(false);
     }
 
     if (socketSendMessage) {
-        socketSendMessage(activeConversationId, inputText, fileUrl);
-        setInputText('');
-        setSelectedFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+      socketSendMessage(activeConversationId, content, fileUrl, replyToId);
+      handleClearFile();
+      setReplyingTo(null);
     }
-  };
-  
- const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
+  }, [activeConversationId, selectedFile, socketSendMessage, handleClearFile]);
 
-  const handleVoiceSend = async (audioBlob: Blob) => {
+  const handleVoiceSend = useCallback(async (audioBlob: Blob) => {
     if (!activeConversationId) return;
 
     setIsUploading(true);
     try {
       const fileUrl = await uploadAudio(audioBlob);
       if (socketSendMessage) {
-        socketSendMessage(activeConversationId, '', fileUrl);
+        socketSendMessage(activeConversationId, '', fileUrl, replyingTo?.id);
+        setReplyingTo(null);
       }
     } catch (e) {
       console.error(e);
@@ -137,7 +119,44 @@ export function ChatArea() {
     } finally {
       setIsUploading(false);
     }
+  }, [activeConversationId, socketSendMessage, replyingTo?.id]);
+
+  const handleCancelReply = useCallback(() => {
+    setReplyingTo(null);
+  }, []);
+
+  const handleReactionAdd = async (messageId: string, emoji: string) => {
+    if (!user?.id) return;
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      await fetch(`${apiUrl}/social/messages/${messageId}/reaction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, emoji })
+      });
+      // Store update handled by socket event
+    } catch (e) {
+      console.error('Failed to add reaction', e);
+    }
   };
+
+  const handleReactionRemove = async (messageId: string, emoji: string) => {
+    if (!user?.id) return;
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      await fetch(`${apiUrl}/social/messages/${messageId}/reaction/remove`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, emoji })
+      });
+    } catch (e) {
+      console.error('Failed to remove reaction', e);
+    }
+  };
+
+  const handleReply = useCallback((message: IMessage) => {
+    setReplyingTo(message);
+  }, []);
 
   const { 
     data, 
@@ -155,13 +174,6 @@ export function ChatArea() {
   }, [inView, hasNextPage, fetchNextPage]);
 
   // Combined messages: Flatten pages (history is desc: newest first in API, so Page 1 is [Newest...Older])
-  // TanStack Query pages: [Page1, Page2, ...]
-  // We want to display oldest at top.
-  // So we reverse the *entire* list? 
-  // API returns DESC. Page 1: 10:00, 09:59... Page 2: 09:58, 09:57...
-  // Flattened: [10:00, 09:59... 09:57...]
-  // Reversed for UI: [...09:57, ...09:59, 10:00] -> Correct chronological order.
-  
   const displayMessages = useMemo(() => {
     const historyMessages = data?.pages.flatMap((page) => page.data) || [];
     const allMessagesMap = new Map();
@@ -228,13 +240,9 @@ export function ChatArea() {
     };
   }, [activeConversationId]);
 
-  // Cleanup typing timeout on unmount or conversation change
+  // Stop typing when leaving conversation
   useEffect(() => {
     return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      // Stop typing when leaving conversation
       if (activeConversationId && emitStopTyping) {
         emitStopTyping(activeConversationId);
       }
@@ -280,10 +288,6 @@ export function ChatArea() {
                             changed = true;
                         }
                     });
-                    // Also check if r.userId is not me? Backend returns all reads.
-                    // Usually we only care if OTHERS read MY message. 
-                    // But 'reads' array includes everyone. filtering happens in render (isOwnMessage check).
-                    // So just adding all userIds is fine.
                     if (existing.size > 0) next.set(msg.id, existing);
                 }
             });
@@ -383,18 +387,10 @@ export function ChatArea() {
 
   const [selectedProfileUser, setSelectedProfileUser] = useState<IUser | null>(null);
 
-  // ... (keep existing effects)
-
   // Helper to open profile from header (only if 1-on-1)
   const handleHeaderProfileClick = async () => {
       // Find the user object for the other person
       if (!activeConversationId) return;
-       // We need to find the other participant ID
-       // We can use the participants Map if we have it
-       // But participants map keys are IDs, values are User objects.
-       
-       // If it's a group, maybe show group members list? For now let's focus on 1-on-1 profile
-       // Check conversation type
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
         const res = await fetch(`${apiUrl}/social/conversations/${user?.id}`);
@@ -426,8 +422,6 @@ export function ChatArea() {
   if (!activeConversationId) {
     return <div className="flex-1 flex items-center justify-center text-muted-foreground">Chọn một cuộc trò chuyện</div>;
   }
-
-
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-background h-screen">
@@ -489,24 +483,20 @@ export function ChatArea() {
                 onImageClick={handleImageClick}
                 topRef={topRef}
                 lastMessageRef={lastMessageRef}
+                onReactionAdd={handleReactionAdd}
+                onReactionRemove={handleReactionRemove}
+                onReply={handleReply}
             />
             <div ref={lastMessageRef} />
         </div>
       </ScrollArea>
       </div>
 
-     {/* ... Input Area ... */}
-      
-      {/* ... Image Viewer ... */}
-
       <UserProfileDialog 
         user={selectedProfileUser} 
         open={!!selectedProfileUser} 
         onOpenChange={(open) => !open && setSelectedProfileUser(null)} 
       />
-
-
-
 
       {/* Input Area */}
       {/* Typing Indicator */}
@@ -518,101 +508,20 @@ export function ChatArea() {
             }).join(', ')} {t('common.is_typing') || 'đang soạn tin...'}
           </div>
       )}
-      <div className="p-4 border-t bg-card/50 backdrop-blur">
-        {selectedFile && (
-            <div className="flex items-center gap-2 mb-2 p-2 bg-muted rounded-lg w-fit">
-                <div className="relative w-12 h-12 rounded overflow-hidden">
-                    <Image 
-                        src={URL.createObjectURL(selectedFile)} 
-                        alt="Preview" 
-                        fill 
-                        className="object-cover"
-                    />
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-xs font-medium max-w-[150px] truncate">{selectedFile.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{(selectedFile.size / 1024).toFixed(1)} KB</span>
-                </div>
-                <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6 ml-1 rounded-full hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => {
-                        setSelectedFile(null);
-                        if (fileInputRef.current) fileInputRef.current.value = '';
-                    }}
-                >
-                    <span className="sr-only">Remove</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 18 18"/></svg>
-                </Button>
-            </div>
-        )}
-        <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
-            accept="image/*"
-            onChange={(e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                    setSelectedFile(e.target.files[0]);
-                }
-            }} 
-        />
-        {isVoiceRecording ? (
-          <div className="bg-muted/50 p-2 rounded-xl">
-            <VoiceRecorder
-              onSend={handleVoiceSend}
-              onRecordingStateChange={setIsVoiceRecording}
-              disabled={isUploading}
-            />
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-xl">
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-background" onClick={() => fileInputRef.current?.click()}>
-              <Paperclip className="h-5 w-5" />
-            </Button>
-            <Input
-              className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground"
-              placeholder={isUploading ? t('common.uploading') : t('common.type_message')}
-              value={inputText}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isUploading}
-            />
-            <div className="relative">
-              {showEmojiPicker && (
-                <div className="absolute bottom-12 right-0 z-10 shadow-xl rounded-xl">
-                  <EmojiPicker
-                    onEmojiClick={(emojiData) => setInputText((prev) => prev + emojiData.emoji)}
-                    width={300}
-                    height={400}
-                  />
-                </div>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`h-9 w-9 rounded-full text-muted-foreground hover:bg-background ${showEmojiPicker ? 'text-primary bg-background' : ''}`}
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              >
-                <Smile className="h-5 w-5" />
-              </Button>
-            </div>
-            {/* Show mic button when input is empty, send button otherwise */}
-            {!inputText.trim() && !selectedFile ? (
-              <VoiceRecorder
-                onSend={handleVoiceSend}
-                onRecordingStateChange={setIsVoiceRecording}
-                disabled={isUploading}
-              />
-            ) : (
-              <Button size="icon" className="h-9 w-9 rounded-full" onClick={handleSendMessage} disabled={isUploading}>
-                <Send className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+      <ChatInput
+        onSendMessage={handleSendMessage}
+        onVoiceSend={handleVoiceSend}
+        onTyping={handleTyping}
+        onStopTyping={handleStopTyping}
+        replyingTo={replyingTo}
+        onCancelReply={handleCancelReply}
+        replyToName={replyingTo ? (participants.get(replyingTo.senderId)?.displayName || participants.get(replyingTo.senderId)?.username) : undefined}
+        isUploading={isUploading}
+        onFileSelect={handleFileSelect}
+        selectedFile={selectedFile}
+        onClearFile={handleClearFile}
+        selectedFileUrl={selectedFileUrl}
+      />
 
       {/* Image Viewer Dialog */}
       <Dialog open={!!viewImage} onOpenChange={(open) => !open && setViewImage(null)}>

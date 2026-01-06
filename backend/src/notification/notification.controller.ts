@@ -1,4 +1,4 @@
-import { Controller, Post, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Post, Delete, Body, Param, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('notification')
@@ -16,7 +16,7 @@ export class NotificationController {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
     if (!user.fcmTokens.includes(token)) {
@@ -44,7 +44,7 @@ export class NotificationController {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
     const updatedTokens = user.fcmTokens.filter((t) => t !== token);

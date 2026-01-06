@@ -19,4 +19,8 @@ export class CreateMessageDto {
   @IsString()
   @IsOptional()
   fileUrl?: string; // Optional if just sending text, but one of them required usually.
+
+  @IsMongoId()
+  @IsOptional()
+  replyToId?: string;
 }

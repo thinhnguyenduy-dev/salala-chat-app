@@ -222,6 +222,24 @@ export class SocialService {
         reads: {
           select: { userId: true, readAt: true },
         },
+        reactions: {
+          select: {
+            id: true,
+             emoji: true,
+             userId: true,
+             messageId: true,
+             createdAt: true
+          }
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            sender: {
+              select: { username: true }
+            }
+          }
+        }
       },
     });
 
@@ -532,5 +550,80 @@ export class SocialService {
         updatedAt: new Date(),
       },
     });
+  }
+
+  async addReaction(userId: string, messageId: string, emoji: string) {
+    // Check if reaction exists
+    // We update if it exists or create new? Schema has unique constraint.
+    // Usually toggling is handled by frontend calling remove, but here we explicitly add.
+    // If we want to allow changing emoji, we might need to delete old one if we want single reaction per user-message.
+    // But our schema allows unique [messageId, userId, emoji], so user can react with multiple emojis.
+    // So we just create.
+
+    try {
+      const reaction = await this.prisma.messageReaction.create({
+        data: {
+          userId,
+          messageId,
+          emoji,
+        },
+      });
+
+      // Get conversation to broadcast to all participants
+      const message = await this.prisma.message.findUnique({
+        where: { id: messageId },
+        select: {
+          conversationId: true,
+          conversation: { select: { participantIds: true } }
+        },
+      });
+
+      if (message && this.chatGateway) {
+         // Emit to all participants' personal rooms (not just conversation room)
+         this.chatGateway.server.to(message.conversation.participantIds).emit('message:reaction:add', reaction);
+      }
+
+      return reaction;
+    } catch (e) {
+      // Ignore if duplicate (already reacted with this emoji)
+      return null;
+    }
+  }
+
+  async removeReaction(userId: string, messageId: string, emoji: string) {
+    try {
+      // We need the ID or deleteMany
+      const result = await this.prisma.messageReaction.deleteMany({
+        where: {
+          userId,
+          messageId,
+          emoji,
+        },
+      });
+
+      if (result.count > 0) {
+         // Get conversation to broadcast to all participants
+        const message = await this.prisma.message.findUnique({
+            where: { id: messageId },
+            select: {
+              conversationId: true,
+              conversation: { select: { participantIds: true } }
+            },
+        });
+
+        if (message && this.chatGateway) {
+            // Emit to all participants' personal rooms
+            this.chatGateway.server.to(message.conversation.participantIds).emit('message:reaction:remove', {
+                messageId,
+                userId,
+                emoji
+            });
+        }
+      }
+      
+      return { success: true };
+    } catch (e) {
+      return { success: false };
+    }
   }
 }

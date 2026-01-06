@@ -129,7 +129,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         fileUrl: payload.fileUrl,
         conversationId: payload.conversationId,
         senderId: userId,
+        replyToId: payload.replyToId, 
       },
+      include: {
+        replyTo: {
+          select: {
+             id: true,
+             content: true,
+             sender: { select: { username: true } }
+          }
+        },
+        reactions: true, // Empty initially but good for consistency
+        sender: {
+           select: { id: true, username: true, email: true }
+        }
+      }
     });
 
     // Update conversation lastMessage
