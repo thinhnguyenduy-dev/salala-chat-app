@@ -150,7 +150,7 @@ export function SidebarRight() {
             <div className="p-4 pt-0">
                 {/* Header Info */}
                 <div className="flex flex-col items-center gap-3 mb-6">
-                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-brand to-brand-secondary flex items-center justify-center shadow-lg">
                         {conversationInfo?.isGroup ? (
                             <Users className="h-10 w-10 text-white" />
                         ) : (

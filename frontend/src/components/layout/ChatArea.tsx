@@ -440,7 +440,7 @@ export function ChatArea() {
           
           <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity" onClick={handleHeaderProfileClick}>
              <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                  <AvatarFallback className="bg-gradient-to-br from-brand to-brand-secondary text-white">
                     {conversationName.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
               </Avatar>

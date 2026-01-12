@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Mic, X, Send, Play, Pause, Trash2 } from 'lucide-react';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { cn } from '@/lib/utils';
@@ -139,7 +139,7 @@ export function VoiceRecorder({
         {/* Send button */}
         <button
           onClick={handleSend}
-          className="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 hover:opacity-90 text-white transition-opacity"
+          className="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-brand to-brand-secondary hover:opacity-90 text-white transition-opacity"
           title="Send"
         >
           <Send className="w-4 h-4" />

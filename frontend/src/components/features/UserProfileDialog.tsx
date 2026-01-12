@@ -27,7 +27,7 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
           <div className="relative">
             <Avatar className="h-24 w-24 border-4 border-background shadow-xl">
               <AvatarImage src={user.avatar} className="object-cover" />
-              <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-3xl font-bold">
+              <AvatarFallback className="bg-gradient-to-br from-brand to-brand-secondary text-white text-3xl font-bold">
                 {user.username.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>

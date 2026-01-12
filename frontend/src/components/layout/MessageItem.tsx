@@ -119,12 +119,12 @@ export const MessageItem = React.memo(({
              <div className={cn(
                 "relative p-3 rounded-lg min-w-[60px]", // min-w for timestamp
                 isOwnMessage 
-                  ? "bg-gradient-to-br from-purple-500 to-pink-500 text-white" 
+                  ? "bg-gradient-to-br from-brand to-brand-secondary text-white" 
                   : "bg-muted"
              )}>
                   {/* Quoted Message */}
                   {message.replyTo && (
-                    <div className="mb-2 p-2 rounded bg-black/10 border-l-4 border-purple-400 text-xs flex flex-col cursor-pointer opacity-80 hover:opacity-100">
+                    <div className="mb-2 p-2 rounded bg-black/10 border-l-4 border-brand-400 text-xs flex flex-col cursor-pointer opacity-80 hover:opacity-100">
                         <span className="font-bold mb-0.5">
                             {message.replyTo.senderId === currentUser?.id ? 'Bạn' : (message.replyTo as any).sender?.username || 'Someone'}
                         </span>
@@ -186,7 +186,7 @@ export const MessageItem = React.memo(({
                             key={emoji}
                             className={cn(
                                 "text-xs px-1.5 py-0.5 rounded-full border flex items-center gap-1 transition-colors hover:bg-muted-foreground/10",
-                                hasReacted ? "bg-purple-100 border-purple-300 text-purple-700" : "bg-background border-border text-foreground"
+                                hasReacted ? "bg-brand-100 border-brand-300 text-brand-700" : "bg-background border-border text-foreground"
                             )}
                             onClick={() => handleReactionClick(emoji, hasReacted)}
                          >

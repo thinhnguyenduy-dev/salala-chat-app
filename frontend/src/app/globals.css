@@ -37,6 +37,14 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* Brand colors for gradients and accents */
+  --color-brand: var(--brand);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-100: var(--brand-100);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -79,6 +87,14 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Brand colors - Teal/Cyan theme (change these to switch color scheme) */
+  --brand: oklch(0.704 0.14 181);
+  --brand-secondary: oklch(0.715 0.143 199);
+  --brand-100: oklch(0.953 0.051 180);
+  --brand-300: oklch(0.845 0.108 181);
+  --brand-400: oklch(0.777 0.152 181);
+  --brand-600: oklch(0.6 0.118 184);
+  --brand-700: oklch(0.511 0.096 186);
 }
 
 .dark {
@@ -113,6 +129,14 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  /* Brand colors - same in dark mode, adjust if needed */
+  --brand: oklch(0.704 0.14 181);
+  --brand-secondary: oklch(0.715 0.143 199);
+  --brand-100: oklch(0.25 0.05 181);
+  --brand-300: oklch(0.35 0.08 181);
+  --brand-400: oklch(0.777 0.152 181);
+  --brand-600: oklch(0.6 0.118 184);
+  --brand-700: oklch(0.75 0.12 186);
 }
 
 @layer base {

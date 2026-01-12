@@ -141,7 +141,7 @@ export function SidebarLeft() {
       {/* Header with Search */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="font-bold text-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
+          <h1 className="font-bold text-xl bg-gradient-to-r from-brand to-brand-secondary bg-clip-text text-transparent">
             Salala
           </h1>
           <div className="flex items-center gap-2">
@@ -231,13 +231,13 @@ export function SidebarLeft() {
                 }}
                 className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
                   activeConversationId === conv.id
-                    ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30'
+                    ? 'bg-gradient-to-r from-brand/20 to-brand-secondary/20 border border-brand/30'
                     : 'hover:bg-accent/50'
                 }`}
               >
                 <div className="relative">
                   <Avatar className="h-11 w-11">
-                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                    <AvatarFallback className="bg-gradient-to-br from-brand to-brand-secondary text-white">
                       <Users className="h-5 w-5" />
                     </AvatarFallback>
                   </Avatar>
@@ -291,7 +291,7 @@ export function SidebarLeft() {
                   }}
                   className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
                     friendConv && activeConversationId === friendConv.id
-                      ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30'
+                      ? 'bg-gradient-to-r from-brand/20 to-brand-secondary/20 border border-brand/30'
                       : 'hover:bg-accent/50'
                   }`}
                 >

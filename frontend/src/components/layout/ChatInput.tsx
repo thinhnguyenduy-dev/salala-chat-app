@@ -104,8 +104,8 @@ export const ChatInput = memo(function ChatInput({
     <div className="p-4 border-t bg-card/50 backdrop-blur">
       {replyingTo && (
         <div className="flex items-center justify-between bg-muted/50 p-2 rounded-t-lg border-b mb-2">
-          <div className="flex flex-col text-sm border-l-2 border-purple-500 pl-2">
-            <span className="font-semibold text-purple-600">Replying to {replyToName || 'Someone'}</span>
+          <div className="flex flex-col text-sm border-l-2 border-brand pl-2">
+            <span className="font-semibold text-brand-600">Replying to {replyToName || 'Someone'}</span>
             <span className="text-muted-foreground truncate max-w-[300px]">{replyingTo.content || 'Media/Voice message'}</span>
           </div>
           <Button variant="ghost" size="icon" onClick={onCancelReply} className="h-6 w-6">
