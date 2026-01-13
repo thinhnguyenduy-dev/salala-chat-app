@@ -8,6 +8,7 @@ import {
   MessageBody,
   WsException,
 } from '@nestjs/websockets';
+import { ConfigService } from '@nestjs/config';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { RedisService } from '../redis/redis.service';
@@ -26,24 +27,35 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly redisService: RedisService,
     private readonly prismaService: PrismaService,
     private readonly notificationService: NotificationService,
+    private readonly configService: ConfigService,
   ) {}
 
   async handleConnection(client: Socket) {
     try {
       const token = client.handshake.query.token as string;
-      // NOTE: In a real app we'd verify the token with secret.
-      // For now assuming the token payload has userId
-      // const payload = this.jwtService.verify(token);
-      // mocking verification for simplicity if secret not set up yet
-      if (!token) throw new Error('No token');
 
-      const payload = this.jwtService.decode(token) as any;
-      if (!payload || !payload.sub) {
-        // If decoding fails or no sub, disconnect
-        client.disconnect();
-        return;
+      if (!token) {
+        throw new WsException('No token provided');
       }
+
+      // Verify token with secret
+      const secret = this.configService.get<string>('JWT_SECRET');
+      const payload = await this.jwtService.verifyAsync(token, { secret });
+      
+      if (!payload || !payload.sub) {
+        throw new WsException('Invalid token payload');
+      }
+
       const userId = payload.sub;
+
+      // Verify user exists in DB
+      const user = await this.prismaService.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new WsException('User not found');
+      }
 
       client.data.userId = userId;
       client.join(userId); // Join personal room for notifications
@@ -54,7 +66,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       console.log(`User ${userId} connected: ${client.id}`);
     } catch (e) {
-      console.error(e);
+      console.error(`Connection failed: ${e.message}`);
       client.disconnect();
     }
   }
