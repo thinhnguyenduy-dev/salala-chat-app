@@ -3,33 +3,27 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useAuthValidation } from "@/hooks/useAuthValidation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
-  const [isHydrated, setIsHydrated] = useState(false);
+  const { isAuthenticated, _hasHydrated } = useAuthStore();
   const { isValidating, isValid } = useAuthValidation();
 
-  // useSocket(); // Removed to prevent duplicate connection (ChatArea handles it)
   // Only initialize notifications after user is validated
   useNotifications(isValid);
 
-  // Wait for zustand to hydrate from localStorage
   useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (isHydrated && !isValidating && (!isAuthenticated || !isValid)) {
+    // Only redirect after Zustand has hydrated from localStorage
+    if (_hasHydrated && !isValidating && (!isAuthenticated || !isValid)) {
       router.push('/login');
     }
-  }, [isAuthenticated, isHydrated, isValidating, isValid, router]);
+  }, [isAuthenticated, _hasHydrated, isValidating, isValid, router]);
 
   // Don't render until hydrated and validated
-  if (!isHydrated || isValidating || !isAuthenticated || !isValid) {
+  if (!_hasHydrated || isValidating || !isAuthenticated || !isValid) {
     return null;
   }
 

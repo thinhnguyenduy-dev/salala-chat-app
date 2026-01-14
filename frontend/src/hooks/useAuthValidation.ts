@@ -4,16 +4,20 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export function useAuthValidation() {
-  const { user, logout, isAuthenticated } = useAuthStore();
+  const { user, logout, isAuthenticated, _hasHydrated } = useAuthStore();
   const [isValidating, setIsValidating] = useState(true);
   const [isValid, setIsValid] = useState(false);
 
   useEffect(() => {
+    // Wait for Zustand to hydrate from localStorage first
+    if (!_hasHydrated) {
+      return;
+    }
+
     const validateUser = async () => {
       // Need token to validate session
-      // @ts-ignore
       const token = useAuthStore.getState().token;
-      
+
       if (!isAuthenticated || !user?.id || !token) {
         setIsValidating(false);
         setIsValid(false);
@@ -58,7 +62,7 @@ export function useAuthValidation() {
     };
 
     validateUser();
-  }, [user?.id, isAuthenticated, logout]);
+  }, [user?.id, isAuthenticated, logout, _hasHydrated]);
 
   return { isValidating, isValid };
 }
