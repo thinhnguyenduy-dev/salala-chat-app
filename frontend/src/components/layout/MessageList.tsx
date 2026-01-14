@@ -41,6 +41,34 @@ export const MessageList = memo(function MessageList({
   onReactionRemove: handleReactionRemove,
   onReply: handleReply
 }: MessageListProps) {
+
+  // Calculate which read receipts to show (only the latest message for each reader)
+  const shownReadReceipts = React.useMemo(() => {
+    const shown = new Map<string, Set<string>>(); // messageId -> Set<userId>
+    const userReadMap = new Set<string>(); // Set of users whose read receipt has been placed
+
+    // Iterate backwards (newest to oldest)
+    // Note: 'messages' should be sorted chronologically (oldest first) which is standard for chat logs
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        const readers = messageReadBy.get(msg.id);
+
+        if (readers) {
+            readers.forEach(userId => {
+                if (!userReadMap.has(userId)) {
+                     // This is the latest message this user has read
+                     if (!shown.has(msg.id)) {
+                         shown.set(msg.id, new Set());
+                     }
+                     shown.get(msg.id)?.add(userId);
+                     userReadMap.add(userId);
+                }
+            });
+        }
+    }
+    return shown;
+  }, [messages, messageReadBy]);
+
   return (
     <div className="space-y-4 flex flex-col justify-end min-h-full">
         {/* Loading Indicator at Top */}
@@ -69,7 +97,7 @@ export const MessageList = memo(function MessageList({
                     showAvatar={!isOwnMessage && !isSequence}
                     showSenderName={!isOwnMessage && !isSequence}
                     isSequence={isSequence}
-                    messageReadBy={messageReadBy.get(msg.id)}
+                    messageReadBy={shownReadReceipts.get(msg.id)}
                     getReaderName={(id) => participants.get(id)}
                 />
             );
